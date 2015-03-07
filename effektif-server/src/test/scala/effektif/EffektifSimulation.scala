@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 
 class EffektifSimulation extends Simulation {
 	val httpConf = http
-			.baseURL("http://localhost:9999")
+			.baseURL("http://104.155.33.219:9999")
 			.acceptHeader("application/json")
 
 
@@ -41,7 +41,7 @@ class EffektifSimulation extends Simulation {
   }
 
 	val scn = scenario("Simple Create and Get")
-    .repeat(1) {
+    .during(30.seconds) {
       feed(userDataFeeder)
       .exec(
 				http("start process")
@@ -71,5 +71,5 @@ class EffektifSimulation extends Simulation {
 				)
     }
 
-	setUp(scn.inject(rampUsers(2) over 10.seconds)).protocols(httpConf)
+	setUp(scn.inject(rampUsers(100) over 5.seconds)).protocols(httpConf)
 }
