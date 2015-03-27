@@ -26,23 +26,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.effektif.workflow.api.Configuration;
-import com.effektif.workflow.api.model.TypedValue;
+import com.effektif.workflow.api.condition.Condition;
+import com.effektif.workflow.api.model.WorkflowId;
 import com.effektif.workflow.api.types.Type;
 import com.effektif.workflow.api.workflow.AbstractWorkflow;
+import com.effektif.workflow.api.workflow.Activity;
 import com.effektif.workflow.api.workflow.Binding;
-import com.effektif.workflow.api.workflow.Condition;
 import com.effektif.workflow.api.workflow.Element;
 import com.effektif.workflow.api.workflow.MultiInstance;
 import com.effektif.workflow.api.workflow.ParseIssue.IssueType;
 import com.effektif.workflow.api.workflow.ParseIssues;
 import com.effektif.workflow.api.workflow.Script;
+import com.effektif.workflow.api.workflow.Transition;
+import com.effektif.workflow.api.workflow.Variable;
+import com.effektif.workflow.api.workflow.Workflow;
+import com.effektif.workflow.impl.conditions.ConditionImpl;
 import com.effektif.workflow.impl.data.DataType;
 import com.effektif.workflow.impl.data.DataTypeService;
-import com.effektif.workflow.impl.data.TypedValueImpl;
 import com.effektif.workflow.impl.json.SerializedWorkflow;
-import com.effektif.workflow.impl.script.CompiledCondition;
-import com.effektif.workflow.impl.script.CompiledScript;
 import com.effektif.workflow.impl.script.ConditionService;
+import com.effektif.workflow.impl.script.ScriptImpl;
 import com.effektif.workflow.impl.script.ScriptService;
 import com.effektif.workflow.impl.template.Hint;
 import com.effektif.workflow.impl.template.TextTemplate;
@@ -71,16 +74,16 @@ public class WorkflowParser {
   public Set<String> activityIds = new HashSet<>();
   public Set<String> variableIds = new HashSet<>();
   public Set<String> transitionIds = new HashSet<>();
-  public boolean isSerialized;
+  public boolean deserialize;
   
   private class ParseContext {
-    ParseContext(String property, Object element, Integer index) {
+    ParseContext(String property, Object element, Object elementImpl, Integer index) {
       this.property = property;
       this.element = element;
-      
+      this.elementImpl = elementImpl;
       String indexText = null;
       if (element instanceof Element) {
-        indexText = ((Element)element).getId();
+        indexText = getIdText(element);
       }
       if (indexText==null && index!=null) {
         indexText = Integer.toString(index);
@@ -89,6 +92,7 @@ public class WorkflowParser {
     Object element;
     String property;
     String index;
+    public Object elementImpl;
     public String toString() {
       if (index!=null) {
         return property+"["+index+"]";
@@ -111,16 +115,32 @@ public class WorkflowParser {
       return null;
     }
   }
+  
+  public static String getIdText(Object object) {
+    if (object instanceof Activity) {
+      return ((Activity)object).getId();
+    } else if (object instanceof Transition) {
+      return ((Transition)object).getId();
+    } else if (object instanceof Variable) {
+      return ((Variable)object).getId();
+    } else if (object instanceof Workflow) {
+      WorkflowId workflowId = ((Workflow)object).getId();
+      return workflowId!=null ? workflowId.getInternal() : null;
+    }
+    return null;
+  }
 
-  /** parses the content of workflowApi into workflowImpl and 
-   * adds any parse issues to workflowApi.
+  /**
+   * Parses the content of <code>workflowApi</code> into <code>workflowImpl</code> and
+   * adds any parse issues to <code>workflowApi</code>.
    * Use one parser for each parse.
-   * By returning the parser itself you can access the  */
-  public static WorkflowParser parse(Configuration configuration, AbstractWorkflow workflowApi) {
+   */
+  public static WorkflowParser parse(Configuration configuration, AbstractWorkflow workflowApi, boolean deserialize) {
     WorkflowParser parser = new WorkflowParser(configuration);
-    parser.pushContext("workflow", workflowApi, null);
     parser.workflow = new WorkflowImpl();
-    parser.isSerialized = workflowApi instanceof SerializedWorkflow;
+    parser.workflow.id = workflowApi.getId();
+    parser.pushContext("workflow", workflowApi, parser.workflow, null);
+    parser.deserialize = deserialize;
     parser.workflow.parse(workflowApi, parser);
     parser.popContext();
     return parser;
@@ -133,8 +153,8 @@ public class WorkflowParser {
     this.issues = new ParseIssues();
   }
 
-  public void pushContext(String property, Object element, Integer index) {
-    this.contextStack.push(new ParseContext(property, element, index));
+  public void pushContext(String property, Object element, Object elementImpl, Integer index) {
+    this.contextStack.push(new ParseContext(property, element, elementImpl, index));
   }
   
   public void popContext() {
@@ -191,7 +211,7 @@ public class WorkflowParser {
    * instantiate the correct type and the deserialization needs to completed here based on the type.
    * only provide the type if the binding is untyped, otherwise use null or {@link #parseBinding(Binding, String, boolean)}. */
   public <T> BindingImpl<T> parseBinding(Binding<T> binding, String bindingName, boolean isRequired, Type type) {
-    pushContext(bindingName, binding, null);
+    pushContext(bindingName, binding, null, null);
     BindingImpl<T> bindingImpl = parseBinding(binding, type);
     int values = 0;
     if (bindingImpl!=null) {
@@ -214,13 +234,18 @@ public class WorkflowParser {
     BindingImpl<T> bindingImpl = new BindingImpl<>();
     if (binding.getValue()!=null) {
       bindingImpl.value = binding.getValue();
-      if (type!=null && isSerialized) {
+      if (type!=null && deserialize) {
         DataTypeService dataTypeService = configuration.get(DataTypeService.class);
         DataType dataType = dataTypeService.createDataType(type);
         bindingImpl.value = (T) dataType.convertJsonToInternalValue(bindingImpl.value);
       }
     }
-    bindingImpl.expression = parseExpression(binding.getExpression());
+    String expression = binding.getExpression();
+    if (expression!=null) {
+      bindingImpl.expression = new ExpressionImpl();
+      pushContext("expression", expression, bindingImpl.expression, null);
+      bindingImpl.expression.parse(expression, this);
+    }
     return bindingImpl;
   }
 
@@ -272,7 +297,7 @@ public class WorkflowParser {
       }
     }
     if (startActivities.isEmpty()) {
-      this.addWarning("No start activities in %s", scope.id);
+      this.addWarning("No start activities in %s", scope.getIdText());
     }
     return startActivities;
   }
@@ -282,13 +307,13 @@ public class WorkflowParser {
       return null;
     }
     MultiInstanceImpl multiInstanceImpl = new MultiInstanceImpl();
-    pushContext("multiInstance", multiInstance, null);
+    pushContext("multiInstance", multiInstance, null, null);
     multiInstanceImpl.parse(multiInstance, this);
     popContext();
     return multiInstanceImpl;
   }
 
-  public CompiledCondition parseCondition(Condition condition) {
+  public ConditionImpl parseCondition(Condition condition) {
     if (condition==null) {
       return null;
     }
@@ -302,7 +327,7 @@ public class WorkflowParser {
     return null;
   }
 
-  public CompiledScript parseScript(Script script) {
+  public ScriptImpl parseScript(Script script) {
     if (script==null) {
       return null;
     }
@@ -316,32 +341,20 @@ public class WorkflowParser {
     return null;
   }
   
-  public ExpressionImpl parseExpression(String expression) {
-    if (expression==null || "".equals(expression)) {
-      return null;
-    }
-    ExpressionImpl expressionImpl = new ExpressionImpl(expression);
-    if (!variableIds.contains(expressionImpl.variableId)) {
-      addWarning("Variable %s doesn't exist", expressionImpl.variableId);
-    } else {
-      // TODO check the fields and if necessary also resolve the type ? 
-    }
-    return expressionImpl;
-  }
-
-  protected TypedValueImpl parseTypedValue(TypedValue typedValue) {
-    if (typedValue==null) {
-      return null;
-    }
-    DataTypeService dataTypeService = configuration.get(DataTypeService.class);
-    DataType type = dataTypeService.createDataType(typedValue.getType());
-    return new TypedValueImpl(type, typedValue.getValue());
-  }
-
   public TextTemplate parseTextTemplate(String templateText, Hint... hints) {
     if (templateText==null) {
       return null;
     }
     return new TextTemplate(templateText, hints, this);
+  }
+  
+  public ScopeImpl getCurrentScope() {
+    for (int i=contextStack.size()-1; i>=0; i--) {
+      Object elementImpl = contextStack.get(i).elementImpl;
+      if (elementImpl instanceof ScopeImpl) {
+        return (ScopeImpl) elementImpl;
+      }
+    }
+    return null;
   }
 }

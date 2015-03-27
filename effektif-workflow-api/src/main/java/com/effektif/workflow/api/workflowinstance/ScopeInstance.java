@@ -19,20 +19,21 @@ import java.util.List;
 
 import org.joda.time.LocalDateTime;
 
+import com.effektif.workflow.api.model.TaskId;
+
 
 /**
  * @author Tom Baeyens
  */
 public class ScopeInstance {
   
-  protected String id;
   protected LocalDateTime start;
   protected LocalDateTime end;
   protected Long duration;
   protected List<ActivityInstance> activityInstances;
   protected List<VariableInstance> variableInstances;
   protected List<TimerInstance> timerInstances;
-  protected String taskId;
+  protected TaskId taskId;
   
   public ActivityInstance findOpenActivityInstance(String activityId) {
     if (activityId!=null && activityInstances!=null) {
@@ -80,16 +81,6 @@ public class ScopeInstance {
       return ((Number)value).doubleValue();
     }
     throw new RuntimeException("Value is not a double: "+value+" ("+value.getClass().getName()+")");
-  }
-
-
-
-  public String getId() {
-    return id;
-  }
-  
-  public void setId(String id) {
-    this.id = id;
   }
 
   public LocalDateTime getStart() {
@@ -142,10 +133,10 @@ public class ScopeInstance {
     this.timerInstances = timerInstances;
   }
   
-  public String getTaskId() {
+  public TaskId getTaskId() {
     return this.taskId;
   }
-  public void setTaskId(String taskId) {
+  public void setTaskId(TaskId taskId) {
     this.taskId = taskId;
   }
 }

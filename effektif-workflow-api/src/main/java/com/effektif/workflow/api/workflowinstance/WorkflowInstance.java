@@ -16,6 +16,8 @@
 package com.effektif.workflow.api.workflowinstance;
 
 import com.effektif.workflow.api.model.UserId;
+import com.effektif.workflow.api.model.WorkflowId;
+import com.effektif.workflow.api.model.WorkflowInstanceId;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 
@@ -25,11 +27,21 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonPropertyOrder({"id", "organizationId", "workflowId", "start", "end", "duration", "activityInstances", "variableInstances", "timerInstances"})
 public class WorkflowInstance extends ScopeInstance {
 
+  protected WorkflowInstanceId id;
   protected String organizationId;
-  protected String workflowId;
+  protected WorkflowId workflowId;
+  protected String businessKey;
   protected UserId creatorId;
-  protected String callerWorkflowInstanceId;
+  protected WorkflowInstanceId callerWorkflowInstanceId;
   protected String callerActivityInstanceId;
+  protected String caseId;
+
+  public WorkflowInstanceId getId() {
+    return this.id;
+  }
+  public void setId(WorkflowInstanceId id) {
+    this.id = id;
+  }
 
   public String getOrganizationId() {
     return this.organizationId;
@@ -38,10 +50,10 @@ public class WorkflowInstance extends ScopeInstance {
     this.organizationId = organizationId;
   }
 
-  public String getCallerWorkflowInstanceId() {
+  public WorkflowInstanceId getCallerWorkflowInstanceId() {
     return this.callerWorkflowInstanceId;
   }
-  public void setCallerWorkflowInstanceId(String callerWorkflowInstanceId) {
+  public void setCallerWorkflowInstanceId(WorkflowInstanceId callerWorkflowInstanceId) {
     this.callerWorkflowInstanceId = callerWorkflowInstanceId;
   }
   
@@ -52,10 +64,10 @@ public class WorkflowInstance extends ScopeInstance {
     this.callerActivityInstanceId = callerActivityInstanceId;
   }
 
-  public String getWorkflowId() {
+  public WorkflowId getWorkflowId() {
     return this.workflowId;
   }
-  public void setWorkflowId(String workflowId) {
+  public void setWorkflowId(WorkflowId workflowId) {
     this.workflowId = workflowId;
   }
   
@@ -64,5 +76,27 @@ public class WorkflowInstance extends ScopeInstance {
   }
   public void setCreatorId(UserId creatorId) {
     this.creatorId = creatorId;
+  }
+
+  public String getCaseId() {
+    return this.caseId;
+  }
+  public void setCaseId(String caseId) {
+    this.caseId = caseId;
+  }
+  public WorkflowInstance caseId(String caseId) {
+    this.caseId = caseId;
+    return this;
+  }
+
+  public String getBusinessKey() {
+    return this.businessKey;
+  }
+  public void setBusinessKey(String businessKey) {
+    this.businessKey = businessKey;
+  }
+  public WorkflowInstance businessKey(String businessKey) {
+    this.businessKey = businessKey;
+    return this;
   }
 }

@@ -34,9 +34,9 @@ public class LocalDateTimeDeserializer extends StdDeserializer<LocalDateTime> {
 
   private static final long serialVersionUID = 1L;
 
-  static DateTimeFormatter formatter = ISODateTimeFormat.dateTimeParser();
+  public static DateTimeFormatter formatter = ISODateTimeFormat.dateTimeParser();
 
-  protected LocalDateTimeDeserializer() {
+  public LocalDateTimeDeserializer() {
     super(LocalDateTime.class);
   }
 

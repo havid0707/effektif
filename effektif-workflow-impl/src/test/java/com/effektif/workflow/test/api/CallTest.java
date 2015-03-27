@@ -17,10 +17,12 @@ package com.effektif.workflow.test.api;
 
 import static org.junit.Assert.*;
 
-import com.effektif.workflow.impl.json.JsonService;
+import java.util.List;
+
 import org.junit.Test;
 
 import com.effektif.workflow.api.activities.Call;
+import com.effektif.workflow.api.activities.NoneTask;
 import com.effektif.workflow.api.activities.UserTask;
 import com.effektif.workflow.api.model.Message;
 import com.effektif.workflow.api.model.TriggerInstance;
@@ -43,12 +45,12 @@ public class CallTest extends WorkflowTest {
   @Test
   public void testCallActivity() {
     Workflow subWorkflow = new Workflow()
-      .activity(new UserTask("subtask"));
+      .activity("subtask", new UserTask());
     
     deploy(subWorkflow);
     
     Workflow superWorkflow = new Workflow()
-      .activity(new Call("call")
+      .activity("call", new Call()
         .subWorkflowId(subWorkflow.getId()));
 
     deploy(superWorkflow);
@@ -79,6 +81,57 @@ public class CallTest extends WorkflowTest {
   }
 
   @Test
+  public void testTwoCallActivitiesInSequence() {
+    Workflow subWorkflow = new Workflow()
+      .activity("auto", new NoneTask());
+    
+    deploy(subWorkflow);
+    
+    Workflow superWorkflow = new Workflow()
+      .activity("call1", new Call()
+        .subWorkflowId(subWorkflow.getId())
+        .transitionToNext())
+      .activity("call2", new Call()
+        .subWorkflowId(subWorkflow.getId()));
+
+    deploy(superWorkflow);
+
+    WorkflowInstance superInstance = start(superWorkflow);
+    assertTrue(superInstance.isEnded());
+
+    List<WorkflowInstance> workflowInstances = workflowEngine.findWorkflowInstances(new WorkflowInstanceQuery());
+    for (WorkflowInstance workflowInstance: workflowInstances) {
+      assertTrue(workflowInstance.isEnded());
+    }
+    assertEquals(3, workflowInstances.size());
+  }
+
+  @Test
+  public void testTwoCallActivitiesInparallel() {
+    Workflow subWorkflow = new Workflow()
+      .activity("auto", new NoneTask());
+    
+    deploy(subWorkflow);
+    
+    Workflow superWorkflow = new Workflow()
+      .activity("call1", new Call()
+        .subWorkflowId(subWorkflow.getId()))
+      .activity("call2", new Call()
+        .subWorkflowId(subWorkflow.getId()));
+
+    deploy(superWorkflow);
+
+    WorkflowInstance superInstance = start(superWorkflow);
+    assertTrue(superInstance.isEnded());
+
+    List<WorkflowInstance> workflowInstances = workflowEngine.findWorkflowInstances(new WorkflowInstanceQuery());
+    for (WorkflowInstance workflowInstance: workflowInstances) {
+      assertTrue(workflowInstance.isEnded());
+    }
+    assertEquals(3, workflowInstances.size());
+  }
+
+  @Test
   public void testCallActivityInputValue() {
     Workflow subWorkflow = new Workflow()
       .variable("performer", new UserIdType())
@@ -98,7 +151,7 @@ public class CallTest extends WorkflowTest {
     start(superWorkflow);
     
     Task task = taskService.findTasks(new TaskQuery()).get(0);
-    assertEquals("johndoe", task.getAssigneeId().getId());
+    assertEquals("johndoe", task.getAssigneeId().getInternal());
   }
 
   @Test
@@ -113,7 +166,7 @@ public class CallTest extends WorkflowTest {
     
     Workflow superWorkflow = new Workflow()
       .variable("guineapig", new UserIdType())
-      .activity(new Call("call")
+      .activity("call", new Call()
         .inputExpression("performer", "guineapig")
         .subWorkflowId(subWorkflow.getId()));
     
@@ -125,7 +178,7 @@ public class CallTest extends WorkflowTest {
     );
 
     Task task = taskService.findTasks(new TaskQuery()).get(0);
-    assertEquals("johndoe", task.getAssigneeId().getId());
+    assertEquals("johndoe", task.getAssigneeId().getInternal());
   }
 
 }

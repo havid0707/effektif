@@ -15,15 +15,19 @@
  */
 package com.effektif.workflow.impl.activity.types;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.WorkflowEngine;
 import com.effektif.workflow.api.activities.Call;
 import com.effektif.workflow.api.model.TriggerInstance;
+import com.effektif.workflow.api.model.WorkflowId;
 import com.effektif.workflow.api.query.WorkflowQuery;
 import com.effektif.workflow.api.workflow.Binding;
 import com.effektif.workflow.api.workflow.Variable;
 import com.effektif.workflow.api.workflow.Workflow;
-import com.effektif.workflow.api.workflowinstance.WorkflowInstance;
 import com.effektif.workflow.api.xml.XmlElement;
 import com.effektif.workflow.impl.WorkflowEngineImpl;
 import com.effektif.workflow.impl.WorkflowParser;
@@ -36,10 +40,6 @@ import com.effektif.workflow.impl.workflow.BindingImpl;
 import com.effektif.workflow.impl.workflowinstance.ActivityInstanceImpl;
 import com.effektif.workflow.impl.workflowinstance.WorkflowInstanceImpl;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  * @author Tom Baeyens
  */
@@ -48,7 +48,7 @@ public class CallImpl extends AbstractBindableActivityImpl<Call> {
   private static final String BPMN_ELEMENT_NAME = "callActivity";
 
   // IDEA Boolean waitTillSubWorkflowEnds; add a configuration property to specify if this is fire-and-forget or wait-till-subworkflow-ends
-  protected String subWorkflowId;
+  protected WorkflowId subWorkflowId;
   protected String subWorkflowSource;
 
   public CallImpl() {
@@ -99,7 +99,7 @@ public class CallImpl extends AbstractBindableActivityImpl<Call> {
         for (Variable subWorkflowVariable: subWorkflowVariables) {
           String subWorkflowVariableId = subWorkflowVariable.getId();
           Binding inputBindingApi = inputBindingsApi.get(subWorkflowVariableId);
-          parser.pushContext("inputBindings["+subWorkflowVariableId+"]", inputBindingApi, null);
+          parser.pushContext("inputBindings["+subWorkflowVariableId+"]", inputBindingApi, null, null);
           BindingImpl<?> bindingImpl = parser.parseBinding(inputBindingApi, subWorkflowVariableId, false, subWorkflowVariable.getType());
           if (bindingImpl!=null) {
             if (inputBindings==null) {
@@ -118,10 +118,9 @@ public class CallImpl extends AbstractBindableActivityImpl<Call> {
 
   @Override
   public void execute(ActivityInstanceImpl activityInstance) {
-    ActivityInstanceImpl activityInstanceImpl = (ActivityInstanceImpl) activityInstance;
     Configuration configuration = activityInstance.getConfiguration();
 
-    String actualSubWorkflowId = null;
+    WorkflowId actualSubWorkflowId = null;
     if (this.subWorkflowId!=null) {
       actualSubWorkflowId = this.subWorkflowId;
     } else if (subWorkflowSource!=null) {
@@ -150,8 +149,10 @@ public class CallImpl extends AbstractBindableActivityImpl<Call> {
       }
       
       WorkflowEngineImpl workflowEngine = configuration.get(WorkflowEngineImpl.class);
-      WorkflowInstance calledProcessInstance = workflowEngine.start(triggerInstance);
-      activityInstanceImpl.setCalledWorkflowInstanceId(calledProcessInstance.getId());
+      WorkflowInstanceImpl calledWorkflowInstance = workflowEngine.startInitialize(triggerInstance);
+      calledWorkflowInstance.addLockedWorkflowInstance(activityInstance.workflowInstance);
+      activityInstance.setCalledWorkflowInstanceId(calledWorkflowInstance.getId());
+      workflowEngine.startExecute(calledWorkflowInstance);
       
     } else {
       log.debug("Skipping call activity because no sub workflow was defined");
@@ -159,7 +160,7 @@ public class CallImpl extends AbstractBindableActivityImpl<Call> {
     }
   }
   
-  public void calledProcessInstanceEnded(ActivityInstanceImpl activityInstance, WorkflowInstanceImpl calledProcessInstance) {
+  public void calledWorkflowInstanceEnded(ActivityInstanceImpl activityInstance, WorkflowInstanceImpl calledProcessInstance) {
     if (outputBindings!=null) {
       for (String subWorkflowVariableId: outputBindings.keySet()) {
         String variableId = outputBindings.get(subWorkflowVariableId);

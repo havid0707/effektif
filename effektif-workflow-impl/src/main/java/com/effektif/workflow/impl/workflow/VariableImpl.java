@@ -30,12 +30,14 @@ public class VariableImpl {
   public WorkflowImpl workflow;  
   public ScopeImpl parent;
 
+  public Variable variable;
   public String id;
   public DataType type;
   public Object initialValue;
 
-  public void parse(Variable variableApi, WorkflowParser parser, ScopeImpl parent) {
-    this.id = variableApi.getId();
+  public void parse(Variable variable, ScopeImpl parentImpl, WorkflowParser parser) {
+    this.id = variable.getId();
+    this.variable = variable;
     if (id==null || "".equals(id)) {
       parser.addError("Variable has no id");
     } else if (id.contains(".")) {
@@ -45,9 +47,9 @@ public class VariableImpl {
     } else {
       parser.variableIds.add(id);
     }
-    this.parent = parent;
+    this.parent = parentImpl;
     DataTypeService dataTypeService = parser.getConfiguration(DataTypeService.class);
-    Type typeApi = variableApi.getType();
+    Type typeApi = variable.getType();
     if (typeApi!=null) {
       this.type = dataTypeService.createDataType(typeApi);
     } else {

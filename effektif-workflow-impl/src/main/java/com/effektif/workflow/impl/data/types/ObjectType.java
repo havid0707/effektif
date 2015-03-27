@@ -18,10 +18,17 @@ package com.effektif.workflow.impl.data.types;
 import com.effektif.workflow.api.types.Type;
 
 
-/** this is just an idea for now. moves to api when mature.
+/** an object type without any declared fields.
+ * 
+ * Any field can be used for any type of value, but the 
+ * tooling doesn't know, and  
+ * hence can't give support, on the fields.
+ * 
+ * Deserializing will happen to Map.
  * 
  * @author Tom Baeyens
  */
-public abstract class ObjectType extends Type {
+public class ObjectType extends Type {
 
+  public static final ObjectType INSTANCE = new ObjectType();
 }

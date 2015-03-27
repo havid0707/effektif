@@ -15,6 +15,8 @@
  */
 package com.effektif.workflow.api.workflow;
 
+import com.effektif.workflow.api.condition.Condition;
+
 
 
 /**
@@ -26,11 +28,23 @@ package com.effektif.workflow.api.workflow;
  */
 public class Transition extends Element {
 
+  protected String id;
+
+  /** The {@link com.effektif.workflow.api.workflow.Activity#id} for the activity this transition leaves from. */
   protected String from;
+
+  /** The {@link com.effektif.workflow.api.workflow.Activity#id} for the activity this transition goes to. */
   protected String to;
+
   protected Condition condition;
   protected Boolean isToNext;
 
+  public String getId() {
+    return this.id;
+  }
+  public void setId(String id) {
+    this.id = id;
+  }
   public Transition id(String id) {
     this.id = id;
     return this;
@@ -39,10 +53,6 @@ public class Transition extends Element {
   public Transition() {
   }
   
-  public Transition(String id) {
-    id(id);
-  }
-
   public String getFrom() {
     return this.from;
   }
@@ -69,6 +79,12 @@ public class Transition extends Element {
     this.isToNext = true;
     return this;
   }
+  public boolean isToNext() {
+    return Boolean.TRUE.equals(isToNext);
+  }
+  public void setToNext(Boolean toNext) {
+    this.isToNext = toNext;
+  }
   
   public Condition getCondition() {
     return this.condition;
@@ -76,18 +92,9 @@ public class Transition extends Element {
   public void setCondition(Condition condition) {
     this.condition = condition;
   }
-  public Transition condition(String expression) {
-    this.condition = new Condition()
-      .expression(expression);
-    return this;
-  }
   public Transition condition(Condition condition) {
     this.condition = condition;
     return this;
-  }
-
-  public boolean isToNext() {
-    return Boolean.TRUE.equals(isToNext);
   }
 
   @Override

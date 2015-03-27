@@ -25,12 +25,23 @@ import org.joda.time.LocalDateTime;
 
 import com.effektif.workflow.api.acl.AccessControlList;
 import com.effektif.workflow.api.acl.AccessControlledObject;
+import com.effektif.workflow.api.form.FormInstance;
+import com.effektif.workflow.api.model.CaseId;
 import com.effektif.workflow.api.model.GroupId;
+import com.effektif.workflow.api.model.TaskId;
 import com.effektif.workflow.api.model.UserId;
+import com.effektif.workflow.api.model.WorkflowId;
+import com.effektif.workflow.api.model.WorkflowInstanceId;
 import com.effektif.workflow.api.workflow.Extensible;
 
 
 /**
+ * An entry in a user’s task list, created for an
+ * {@link com.effektif.workflow.api.workflow.Activity} in a
+ * {@link com.effektif.workflow.api.workflow.Workflow} definition
+ * when executing the workflow.
+ *
+ * @see <a href="https://github.com/effektif/effektif/wiki/Tasks-and-cases">Tasks and cases</a>
  * @author Tom Baeyens
  */
 public class Task extends Extensible implements AccessControlledObject {
@@ -42,7 +53,7 @@ public class Task extends Extensible implements AccessControlledObject {
           "activityId", "activityInstanceId", "activityNotify", "hasWorkflowForm", 
           "workflowInstanceId", "sourceWorkflowId", "workflowId", "properties"));
   
-  protected String id;
+  protected TaskId id;
   protected String organizationId;
   protected String name;
   protected String description;
@@ -55,10 +66,13 @@ public class Task extends Extensible implements AccessControlledObject {
   protected UserId assigneeId;
   protected List<UserId> candidateIds;
   protected List<GroupId> candidateGroupIds;
+  protected FormInstance formInstance;
 
-  protected String caseId; // id of the root task in the task parent-child relationship
-  protected String parentId;
-  protected List<String> subtaskIds;
+  /** id of the root task in the task parent-child relationship
+   * can be null for tasks that don't have a case. */
+  protected CaseId caseId; 
+  protected TaskId parentId;
+  protected List<TaskId> subtaskIds;
   protected LocalDateTime duedate;
   protected LocalDateTime lastUpdated;
   // cancelled==true ==> completed==true 
@@ -76,10 +90,11 @@ public class Task extends Extensible implements AccessControlledObject {
   //    when completed: co==true & eai == null (absent)
   protected Boolean activityNotify;
   protected Boolean hasWorkflowForm;
-  protected String workflowInstanceId;
+  protected WorkflowInstanceId workflowInstanceId;
   protected String sourceWorkflowId;
-  protected String workflowId;
-  
+  protected WorkflowId workflowId;
+  protected String roleVariableId;
+
   public Task() {
   }
   
@@ -145,14 +160,14 @@ public class Task extends Extensible implements AccessControlledObject {
     return this;
   }
   
-  public String getId() {
+  public TaskId getId() {
     return id;
   }
   
-  public void setId(String id) {
+  public void setId(TaskId id) {
     this.id = id;
   }
-  
+
   public String getName() {
     return name;
   }
@@ -185,12 +200,12 @@ public class Task extends Extensible implements AccessControlledObject {
   }
 
   
-  public String getWorkflowInstanceId() {
+  public WorkflowInstanceId getWorkflowInstanceId() {
     return workflowInstanceId;
   }
 
   
-  public void setWorkflowInstanceId(String workflowInstanceId) {
+  public void setWorkflowInstanceId(WorkflowInstanceId workflowInstanceId) {
     this.workflowInstanceId = workflowInstanceId;
   }
 
@@ -210,36 +225,36 @@ public class Task extends Extensible implements AccessControlledObject {
   }
 
   
-  public String getWorkflowId() {
+  public WorkflowId getWorkflowId() {
     return workflowId;
   }
 
   
-  public void setWorkflowId(String workflowId) {
+  public void setWorkflowId(WorkflowId workflowId) {
     this.workflowId = workflowId;
   }
 
   /** the parent task.
    * Inverse relation of the {@link #getSubtaskIds()} */
-  public String getParentId() {
+  public TaskId getParentId() {
     return this.parentId;
   }
   /** @see #getParentId() */
-  public void setParentId(String parentId) {
+  public void setParentId(TaskId parentId) {
     this.parentId = parentId;
   }
   
   /** id references to the subtasks.
    * Inverse relation of the {@link #getParentId()} */
-  public List<String> getSubtaskIds() {
+  public List<TaskId> getSubtaskIds() {
     return this.subtaskIds;
   }
   /** @see #getSubtaskIds() */
-  public void setSubtaskIds(List<String> subtaskIds) {
+  public void setSubtaskIds(List<TaskId> subtaskIds) {
     this.subtaskIds = subtaskIds;
   }
   
-  public void addSubtaskId(String subtaskId) {
+  public void addSubtaskId(TaskId subtaskId) {
     if (subtaskIds==null) {
       subtaskIds = new ArrayList<>();
     }
@@ -249,11 +264,11 @@ public class Task extends Extensible implements AccessControlledObject {
   
   /** id reference to the root task in the task 
    * {@link #getParentId() parent} - {@link #getSubtaskIds() child} relation */
-  public String getCaseId() {
+  public CaseId getCaseId() {
     return this.caseId;
   }
   /** @see #getCaseId() */
-  public void setCaseId(String caseId) {
+  public void setCaseId(CaseId caseId) {
     this.caseId = caseId;
   }
 
@@ -324,8 +339,8 @@ public class Task extends Extensible implements AccessControlledObject {
     this.activityNotify = activityNotify;
   }
   
-  public Boolean hasWorkflowForm() {
-    return this.hasWorkflowForm;
+  public boolean hasWorkflowForm() {
+    return Boolean.TRUE.equals(this.hasWorkflowForm);
   }
   public void setWorkflowForm(Boolean hasWorkflowForm) {
     this.hasWorkflowForm = hasWorkflowForm;
@@ -365,10 +380,9 @@ public class Task extends Extensible implements AccessControlledObject {
     return this;
   }
 
+  @Override
   protected void checkPropertyKey(String key) {
-    if (key==null || INVALID_PROPERTY_KEYS.contains(key)) {
-      throw new RuntimeException("Invalid property '"+key+"'");
-    }
+    checkPropertyKey(key, INVALID_PROPERTY_KEYS);
   }
 
   public AccessControlList getAccess() {
@@ -378,4 +392,21 @@ public class Task extends Extensible implements AccessControlledObject {
     this.access = access;
   }
   
+  public FormInstance getFormInstance() {
+    return this.formInstance;
+  }
+  public void setFormInstance(FormInstance formInstance) {
+    this.formInstance = formInstance;
+  }
+  public Task formInstance(FormInstance formInstance) {
+    this.formInstance = formInstance;
+    return this;
+  }
+
+  public String getRoleVariableId() {
+    return this.roleVariableId;
+  }
+  public void setRoleVariableId(String roleVariableId) {
+    this.roleVariableId = roleVariableId;
+  }
 }

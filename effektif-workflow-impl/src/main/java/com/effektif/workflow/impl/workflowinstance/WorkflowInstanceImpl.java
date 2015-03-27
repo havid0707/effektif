@@ -19,8 +19,10 @@ import static com.effektif.workflow.impl.workflowinstance.ActivityInstanceImpl.*
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 
 import org.joda.time.LocalDateTime;
@@ -29,7 +31,11 @@ import org.slf4j.LoggerFactory;
 
 import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.WorkflowEngine;
+import com.effektif.workflow.api.model.CaseId;
+import com.effektif.workflow.api.model.TriggerInstance;
+import com.effektif.workflow.api.model.WorkflowInstanceId;
 import com.effektif.workflow.api.query.WorkflowInstanceQuery;
+import com.effektif.workflow.api.task.Case;
 import com.effektif.workflow.api.workflowinstance.WorkflowInstance;
 import com.effektif.workflow.impl.ExecutorService;
 import com.effektif.workflow.impl.WorkflowEngineImpl;
@@ -51,21 +57,37 @@ public class WorkflowInstanceImpl extends ScopeInstanceImpl {
   
   public static final Logger log = LoggerFactory.getLogger(WorkflowEngine.class);
 
+  public WorkflowInstanceId id;
+  public String businessKey;
   public String organizationId;
   public LockImpl lock;
   public Queue<ActivityInstanceImpl> work;
   public Queue<ActivityInstanceImpl> workAsync;
-  public String callerWorkflowInstanceId;
+  public WorkflowInstanceId callerWorkflowInstanceId;
   public String callerActivityInstanceId;
   public Boolean isAsync;
   public Long nextActivityInstanceId;
   public Long nextVariableInstanceId;
   public List<Job> jobs;
+  /** local cache of the locked workflow instance for the purpose of the 
+   * call activity.  in case the subprocess is fully synchronous and it 
+   * finishes and wants to continue the parent, that parent is already 
+   * locked in the db.  the call activity will first check this cache to see 
+   * if the workflow instance is already locked and use this one instead of 
+   * going to the db. */
+  public Map<WorkflowInstanceId,WorkflowInstanceImpl> lockedWorkflowInstances;
+  public Case caze;
+  public CaseId caseId;
 
   public WorkflowInstanceImpl() {
   }
-  
-  public WorkflowInstanceImpl(Configuration configuration, WorkflowImpl workflow, String workflowInstanceId) {
+
+  public WorkflowInstanceImpl(
+          Configuration configuration, 
+          WorkflowImpl workflow, 
+          WorkflowInstanceId workflowInstanceId, 
+          TriggerInstance triggerInstance,
+          LockImpl lock) {
     this.id = workflowInstanceId;
     this.organizationId = workflow.organizationId;
     this.configuration = configuration;
@@ -75,12 +97,17 @@ public class WorkflowInstanceImpl extends ScopeInstanceImpl {
     this.start = Time.now();
     this.nextActivityInstanceId = 1l;
     this.nextVariableInstanceId = 1l;
-    initializeVariableInstances();
-    if (log.isDebugEnabled()) log.debug("Created "+workflowInstance);
+    this.businessKey = triggerInstance.getBusinessKey();
+    this.callerWorkflowInstanceId = triggerInstance.getCallerWorkflowInstanceId();
+    this.callerActivityInstanceId = triggerInstance.getCallerActivityInstanceId();
+    this.lock = lock;
+    this.initializeVariableInstances();
   }
-  
+
   public WorkflowInstance toWorkflowInstance() {
     WorkflowInstance workflowInstance = new WorkflowInstance();
+    workflowInstance.setId(id);
+    workflowInstance.setBusinessKey(businessKey);
     workflowInstance.setOrganizationId(organizationId);
     workflowInstance.setWorkflowId(workflow.id);
     workflowInstance.setCallerWorkflowInstanceId(callerWorkflowInstanceId);
@@ -187,20 +214,37 @@ public class WorkflowInstanceImpl extends ScopeInstanceImpl {
     }
   }
   
+  public void addLockedWorkflowInstance(WorkflowInstanceImpl lockedWorkflowInstance) {
+    if (lockedWorkflowInstances==null) {
+      lockedWorkflowInstances = new HashMap<>();
+    }
+    lockedWorkflowInstances.put(lockedWorkflowInstance.getId(), lockedWorkflowInstance);
+  }
+
   public void workflowInstanceEnded() {
     if (callerWorkflowInstanceId!=null) {
-      WorkflowEngineImpl workflowEngine = configuration.get(WorkflowEngineImpl.class);
-      WorkflowInstanceImpl callerProcessInstance = workflowEngine.lockProcessInstanceWithRetry(
-              workflowInstance.callerWorkflowInstanceId,
-              workflowInstance.callerActivityInstanceId);
-      ActivityInstanceImpl callerActivityInstance = callerProcessInstance.findActivityInstance(callerActivityInstanceId);
-      if (callerActivityInstance.isEnded()) {
-        throw new RuntimeException("Call activity instance "+callerActivityInstance+" is already ended");
+      WorkflowInstanceImpl callerProcessInstance = null;
+      if (lockedWorkflowInstances!=null) {
+        // the lockedWorkflowInstances is a local cache of the locked workflow instances 
+        // which is passed down to the sub workflow instance in the call activity.  
+        // in case the subprocess is fully synchronous and it 
+        // finishes and wants to continue the parent, that parent is already 
+        // locked in the db.  the call activity will first check this cache to see 
+        // if the workflow instance is already locked and use this one instead of 
+        // going to the db.
+        callerProcessInstance = lockedWorkflowInstances.get(workflowInstance.callerWorkflowInstanceId);
       }
+      if (callerProcessInstance==null) {
+        WorkflowEngineImpl workflowEngine = configuration.get(WorkflowEngineImpl.class);
+        callerProcessInstance = workflowEngine.lockWorkflowInstanceWithRetry(
+                workflowInstance.callerWorkflowInstanceId,
+                workflowInstance.callerActivityInstanceId);
+      }
+      ActivityInstanceImpl callerActivityInstance = callerProcessInstance.findActivityInstance(callerActivityInstanceId);
       if (log.isDebugEnabled()) log.debug("Notifying caller "+callerActivityInstance);
       ActivityImpl activityDefinition = callerActivityInstance.getActivity();
       CallImpl callActivity = (CallImpl) activityDefinition.activityType;
-      callActivity.calledProcessInstanceEnded(callerActivityInstance, workflowInstance);
+      callActivity.calledWorkflowInstanceEnded(callerActivityInstance, workflowInstance);
       callerActivityInstance.onwards();
       callerProcessInstance.executeWork();
     }
@@ -362,5 +406,9 @@ public class WorkflowInstanceImpl extends ScopeInstanceImpl {
     if (updates!=null) {
       getUpdates().isJobsChanged = true;
     }
+  }
+
+  public WorkflowInstanceId getId() {
+    return this.id;
   }
 }

@@ -16,15 +16,23 @@
 package com.effektif.workflow.api.triggers;
 
 import com.effektif.workflow.api.form.Form;
+import com.effektif.workflow.api.form.FormField;
 import com.effektif.workflow.api.workflow.Trigger;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 
 
 /**
+ * A {@link com.effektif.workflow.api.workflow.Trigger} for starting a workflow using a
+ * {@link com.effektif.workflow.api.form.Form} -
+ * see <a href="https://github.com/effektif/effektif/wiki/Forms">Forms</a>.
+ *
  * @author Tom Baeyens
  */
+@JsonTypeName("form")
 public class FormTrigger extends Trigger {
   
   protected Form form;
+  public static final String FORM_INSTANCE_KEY = "formInstance";
 
   public Form getForm() {
     return this.form;
@@ -34,6 +42,19 @@ public class FormTrigger extends Trigger {
   }
   public FormTrigger form(Form form) {
     this.form = form;
+    return this;
+  }
+  /** adds a form field */  
+  public FormTrigger field(FormField field) {
+    if (form==null) {
+      form = new Form();
+    }
+    form.field(field);
+    return this;
+  }
+  /** shortcut to add a field and set the binding expression */  
+  public FormTrigger field(String bindingExpression) {
+    field(new FormField().bindingExpression(bindingExpression));
     return this;
   }
 }

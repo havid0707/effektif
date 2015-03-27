@@ -18,7 +18,6 @@ package com.effektif.workflow.api.activities;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.effektif.workflow.api.model.Attachment;
 import com.effektif.workflow.api.model.FileId;
 import com.effektif.workflow.api.model.GroupId;
 import com.effektif.workflow.api.model.UserId;
@@ -61,8 +60,15 @@ public class EmailTask extends Activity {
   protected String bodyText;
   protected String bodyHtml;
   
-  protected List<Binding<Attachment>> attachments;
+  // TODO transform to List<Binding<FileId>> attachmentFileIds
+  protected List<Binding<FileId>> attachmentFileIds;
   
+  @Override
+  public EmailTask id(String id) {
+    super.id(id);
+    return this;
+  }
+
   public Binding<String> getFromEmailAddress() {
     return this.fromEmailAddress;
   }
@@ -332,26 +338,26 @@ public class EmailTask extends Activity {
     this.bodyHtml = bodyHtmlBinding;
   }
 
-  public List<Binding<Attachment>> getAttachments() {
-    return this.attachments;
+  public List<Binding<FileId>> getAttachmentFileIds() {
+    return this.attachmentFileIds;
   }
-  public void setAttachments(List<Binding<Attachment>> attachments) {
-    this.attachments = attachments;
+  public void setAttachments(List<Binding<FileId>> attachments) {
+    this.attachmentFileIds = attachments;
   }
-  public EmailTask attachment(Attachment attachment) {
-    addAttachment(new Binding<Attachment>().value(attachment));
+  public EmailTask attachment(FileId attachmentFileId) {
+    addAttachment(new Binding<FileId>().value(attachmentFileId));
     return this;
   }
   /** adds the user specified in nested field inside a variable as a recipient. */ 
   public EmailTask attachmentExpression(String expression) {
-    addAttachment(new Binding<Attachment>().expression(expression));
+    addAttachment(new Binding<FileId>().expression(expression));
     return this;
   }
-  protected void addAttachment(Binding<Attachment> attachment) {
-    if (attachments==null) {
-      attachments = new ArrayList<>();
+  protected void addAttachment(Binding<FileId> attachment) {
+    if (attachmentFileIds==null) {
+      attachmentFileIds = new ArrayList<>();
     }
-    attachments.add(attachment);
+    attachmentFileIds.add(attachment);
   }
 
   /**
@@ -405,11 +411,6 @@ public class EmailTask extends Activity {
   @Override
   public EmailTask timer(Timer timer) {
     super.timer(timer);
-    return this;
-  }
-  @Override
-  public EmailTask id(String id) {
-    super.id(id);
     return this;
   }
   @Override

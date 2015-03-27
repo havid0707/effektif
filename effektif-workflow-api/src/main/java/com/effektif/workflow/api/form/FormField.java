@@ -15,72 +15,70 @@
  */
 package com.effektif.workflow.api.form;
 
-import com.effektif.workflow.api.types.Type;
+import com.effektif.workflow.api.workflow.Binding;
 
 
 /**
+ * Represents one input field on a {@link com.effektif.workflow.api.form.Form},
+ * also specifying how it’s connected to the workflow variables -
+ * see <a href="https://github.com/effektif/effektif/wiki/Forms">Forms</a>.
+ *
+ * You don’t have to specify a form field’s type when you define a workflow.
+ * The type is derived from the binding expression and is passed to the form rendering engines.
+ * 
  * @author Tom Baeyens
  */
-public class FormField {
+public class FormField extends AbstractFormField {
 
-  protected String key;
-  protected String name;
-  protected Boolean readOnly = false;
-  protected Boolean required = false;
-  protected Type type;
+  protected Binding<?> binding;
 
-  public String getKey() {
-    return this.key;
+  public Binding<?> getBinding() {
+    return this.binding;
   }
-  public void setKey(String key) {
-    this.key = key;
+  public void setBinding(Binding<?> binding) {
+    this.binding = binding;
   }
-  public FormField key(String key) {
-    this.key = key;
+  public FormField binding(Binding<?> binding) {
+    this.binding = binding;
     return this;
   }
-
-  public String getName() {
-    return this.name;
+  /** shortcut to set the binding expression on this field 
+   * @see https://github.com/effektif/effektif/wiki/Expressions */
+  public FormField bindingExpression(String bindingExpression) {
+    this.binding = new Binding().expression(bindingExpression);
+    return this;
   }
-  public void setName(String name) {
-    this.name = name;
+  
+  @Override
+  public FormField id(String id) {
+    super.id(id);
+    return this;
   }
+  @Override
   public FormField name(String name) {
-    this.name = name;
+    super.name(name);
     return this;
   }
-
-  public Boolean getReadOnly() {
-    return this.readOnly;
-  }
-  public void setReadOnly(Boolean readOnly) {
-    this.readOnly = readOnly;
-  }
+  /** sets readonly to true in a fluent api style */
+  @Override
   public FormField readOnly() {
-    this.readOnly = true;
+    super.readOnly();
     return this;
   }
-  
-  public Boolean getRequired() {
-    return this.required;
-  }
-  public void setRequired(Boolean required) {
-    this.required = required;
-  }
+  /** sets required to true in a fluent api style */
+  @Override
   public FormField required() {
-    this.required = true;
+    super.required();
     return this;
   }
-  
-  public Type getType() {
-    return this.type;
+  @Override
+  public FormField property(String key, Object value) {
+    super.property(key, value);
+    return this;
   }
-  public void setType(Type type) {
-    this.type = type;
-  }
-  public FormField type(Type type) {
-    this.type = type;
+  @Override
+  public FormField propertyOpt(String key, Object value) {
+    super.propertyOpt(key, value);
     return this;
   }
 }

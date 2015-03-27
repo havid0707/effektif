@@ -24,16 +24,23 @@ import com.effektif.workflow.impl.workflowinstance.ScopeInstanceImpl;
 /**
  * @author Tom Baeyens
  */
-public class ScriptImpl implements CompiledScript, CompiledCondition {
+public class ScriptImpl {
 
-  public AbstractScriptService scriptService;
+  public ScriptService scriptService;
   public Object compiledScript;
   /** maps script variable names to workflow variable ids */ 
   public Map<String, String> mappings;
   public DataType expectedResultType;
   public boolean readOnly;
   
-  public ScriptResult evaluate(ScopeInstanceImpl scopeInstance) {
-    return scriptService.evaluate(scopeInstance, this);
+  public boolean evaluate(ScopeInstanceImpl scopeInstance) {
+    ScriptResult scriptResult = scriptService.run(scopeInstance, this);
+    Object resultValue = scriptResult!=null ? scriptResult.result : null;
+    return !Boolean.FALSE.equals(resultValue) && resultValue!=null;
+
+  }
+
+  public ScriptResult run(ScopeInstanceImpl scopeInstance) {
+    return scriptService.run(scopeInstance, this);
   }
 }

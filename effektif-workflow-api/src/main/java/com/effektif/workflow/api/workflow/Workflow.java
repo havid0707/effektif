@@ -19,10 +19,12 @@ import org.joda.time.LocalDateTime;
 
 import com.effektif.workflow.api.WorkflowEngine;
 import com.effektif.workflow.api.model.UserId;
+import com.effektif.workflow.api.model.WorkflowId;
 import com.effektif.workflow.api.types.Type;
 
 
-/** An executable workflow in API format to deploy 
+/**
+ * An executable workflow in API format to deploy
  * it into the {@link WorkflowEngine}.
  * 
  * From this API format, the workflow can be converted 
@@ -139,7 +141,7 @@ public class Workflow extends AbstractWorkflow {
   /** sets the id of this workflow.
    * The id is not really used during execution. */
   @Override
-  public Workflow id(String id) {
+  public Workflow id(WorkflowId id) {
     super.id(id);
     return this;
   }
@@ -179,4 +181,12 @@ public class Workflow extends AbstractWorkflow {
     super.organizationId(organizationId);
     return this;
   }
+
+  @Override
+  public Workflow variable(Variable variable) {
+    super.variable(variable);
+    return this;
+  }
+  
+  
 }

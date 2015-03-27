@@ -30,24 +30,27 @@ import com.effektif.workflow.impl.identity.IdentityService;
  * @author Tom Baeyens
  */
 public class GroupIdTypeImpl extends AbstractDataType<GroupIdType> {
+
+  protected GroupTypeImpl groupTypeImpl;
   
-  public GroupIdTypeImpl(Configuration configuration) {
-    this(new GroupIdType(), configuration);
+  public GroupIdTypeImpl() {
+    super(new GroupIdType(), GroupId.class);
   }
 
-  public GroupIdTypeImpl(GroupIdType type, Configuration configuration) {
-    super(type, GroupId.class, configuration);
+  public void setConfiguration(Configuration configuration) {
+    super.setConfiguration(configuration);
+    this.groupTypeImpl = getSingletonDataType(GroupTypeImpl.class);
   }
 
   @Override
   public TypedValueImpl dereference(Object value, String fieldName) {
     GroupId groupId = (GroupId) value;
     IdentityService identityService = configuration.get(IdentityService.class);
-    Group group = identityService.findGroupById(groupId);
+    Group group = groupId!=null ? identityService.findGroupById(groupId) : null;
     if ("*".equals(fieldName)) {
-      return new TypedValueImpl(new GroupTypeImpl(configuration), group);
+      return new TypedValueImpl(groupTypeImpl, group);
     }
-    return new GroupTypeImpl(configuration).dereference(group, fieldName);
+    return groupTypeImpl.dereference(group, fieldName);
   }
 
   @Override

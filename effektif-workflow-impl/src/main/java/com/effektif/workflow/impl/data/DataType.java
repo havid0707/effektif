@@ -15,6 +15,7 @@
  */
 package com.effektif.workflow.impl.data;
 
+import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.types.Type;
 import com.effektif.workflow.api.workflow.Binding;
 import com.effektif.workflow.api.xml.XmlElement;
@@ -24,15 +25,14 @@ import com.effektif.workflow.impl.template.Hints;
 
 public interface DataType<T extends Type> extends Plugin {
   
+  void setConfiguration(Configuration configuration);
+
   Class<?> getValueClass();
   Class<? extends Type> getApiClass();
   boolean isStatic();
   T serialize();
 
   TypeGenerator getTypeGenerator();
-
-  /** invoked to validate values submitted through the api. */
-  void validateInternalValue(Object internalValue) throws InvalidValueException;
 
   /** only returns valid internal values. */
   Object convertJsonToInternalValue(Object jsonValue) throws InvalidValueException;
@@ -47,5 +47,6 @@ public interface DataType<T extends Type> extends Plugin {
   /** Write the given value as an attribute on the given XML element. */
   void writeValue(XmlElement xml, Object value);
   
+  /** The returned value is never null. */
   TypedValueImpl dereference(Object value, String field);
 }

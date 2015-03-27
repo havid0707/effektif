@@ -29,9 +29,9 @@ import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.WorkflowEngine;
-import com.effektif.workflow.api.model.TypedValue;
+import com.effektif.workflow.api.model.TaskId;
+import com.effektif.workflow.api.types.ListType;
 import com.effektif.workflow.api.workflowinstance.ActivityInstance;
 import com.effektif.workflow.api.workflowinstance.ScopeInstance;
 import com.effektif.workflow.api.workflowinstance.TimerInstance;
@@ -58,14 +58,10 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
   public Long duration;
   public List<ActivityInstanceImpl> activityInstances;
   public List<VariableInstanceImpl> variableInstances;
+  /** maps variable.id's to variable instances */
   public Map<String, VariableInstanceImpl> variableInstancesMap;
   public List<TimerInstanceImpl> timerInstances;
   public Map<String,Object> properties;
-
-  // for now only the workflowInstance will have a taskId.
-  // This implementation sketches the idea how to expand the implementation to support nested subtask creation.
-  // See UserTaskImpl for a note describing why taskId's are not set for user task activity instances. */
-  public String taskId;
 
   // As long as the workflow instance is not saved, the updates collection is null.
   // That means it's not yet necessary to collect the updates. 
@@ -74,8 +70,8 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
   public ScopeInstanceImpl() {
   }
 
-  public ScopeInstanceImpl(ScopeInstanceImpl parent, ScopeImpl scope, String id) {
-    super(parent, id);
+  public ScopeInstanceImpl(ScopeInstanceImpl parent, ScopeImpl scope) {
+    super(parent);
     this.scope = scope;
     this.start = Time.now();
   }
@@ -85,11 +81,9 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
   public abstract boolean isWorkflowInstance();
   
   protected void toScopeInstance(ScopeInstance scopeInstanceApi) {
-    scopeInstanceApi.setId(id);
     scopeInstanceApi.setStart(start);
     scopeInstanceApi.setEnd(end);
     scopeInstanceApi.setDuration(duration);
-    scopeInstanceApi.setTaskId(taskId);
     if (activityInstances!=null && !activityInstances.isEmpty()) {
       List<ActivityInstance> activityInstanceApis = new ArrayList<>();
       for (ActivityInstanceImpl activityInstanceImpl: this.activityInstances) {
@@ -213,6 +207,9 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
   
   public Object getValue(ExpressionImpl expression) {
     VariableInstanceImpl variableInstance = getVariableInstance(expression);
+    if (variableInstance==null) {
+      return null;
+    }
     if (expression.fields==null) {
       return variableInstance.getValue();
     }
@@ -245,7 +242,7 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
     }
     return values;
   }
-  
+
   public TypedValueImpl getTypedValue(ExpressionImpl expression) {
     VariableInstanceImpl variableInstance = getVariableInstance(expression);
     if (expression.fields==null) {
@@ -264,7 +261,8 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
           DataType type = typedValue.type;
           if ( (value instanceof Collection)
                && ! (type instanceof ListTypeImpl) ){
-            type = new ListTypeImpl(type, configuration);
+            type = new ListTypeImpl((ListType)type);
+            type.setConfiguration(configuration);
           }
           typedValue = typedValue.type.dereference(value, field);
         } else {
@@ -283,7 +281,18 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
     throw new RuntimeException("Variable "+variableId+" is not defined in "+getClass().getSimpleName()+" "+toString());
   }
   
-  
+  public void collectVariableValues(Map<String, Object> variableValues) {
+    // parent is added before the local variables to comply with scoping rules.
+    if (parent!=null) {
+      parent.collectVariableValues(variableValues);
+    }
+    if (variableInstancesMap!=null) {
+      for (String variableId: variableInstancesMap.keySet()) {
+        VariableInstanceImpl variableInstance = variableInstancesMap.get(variableId);
+        variableValues.put(variableId, variableInstance.value);
+      }
+    }
+  }
   
   public TypedValueImpl getTypedValue(String variableId) {
     VariableInstanceImpl variableInstance = findVariableInstance(variableId);
@@ -295,45 +304,48 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
 
   /** sets all entries individually, variableValues maps variable ids to values */
   public void setVariableValues(Map<String,Object> variableValues) {
+    setVariableValues(variableValues, false);
+  }
+
+  public void setVariableValues(Map<String,Object> variableValues, boolean deserialize) {
     if (variableValues!=null) {
       for (String variableId: variableValues.keySet()) {
         Object value = variableValues.get(variableId);
-        setVariableValue(variableId, value);
+        setVariableValue(variableId, value, deserialize);
       }
     }
   }
 
-  public TypedValueImpl createTypedValueImpl(TypedValue typedValue, Configuration configuration) {
-    if (typedValue==null || typedValue.getValue()==null) {
-      return null;
-    }
-    DataTypeService dataTypeService = configuration.get(DataTypeService.class);
-    DataType dataType = dataTypeService.createDataType(typedValue.getType());
-    return new TypedValueImpl(dataType, typedValue.getValue());
+  public void setVariableValue(String variableId, Object value) {
+    setVariableValue(variableId, value, false);
   }
 
-  public void setVariableValue(String variableId, Object value) {
+  public void setVariableValue(String variableId, Object value, boolean deserialize) {
     if (variableInstances!=null) {
       VariableInstanceImpl variableInstance = getVariableInstanceLocal(variableId);
       if (variableInstance!=null) {
-        setVariableValue(variableInstance, value);
+        setVariableValue(variableInstance, value, deserialize);
         return;
       }
     }
     if (parent!=null) {
-      parent.setVariableValue(variableId, value);
+      parent.setVariableValue(variableId, value, deserialize);
       return;
     }
     DataTypeService dataTypeService = configuration.get(DataTypeService.class);
-    DataType dataType = dataTypeService.getDataTypeByValue(value);
+    Class<?> valueClass = value!=null ? value.getClass() : null;
+    DataType dataType = dataTypeService.getDataTypeByValue(valueClass);
     if (dataType==null) {
       throw new RuntimeException("Couldn't determine data type dynamically for value "+value);
     }
     VariableInstanceImpl variableInstance = createVariableInstanceLocal(variableId, dataType);
-    setVariableValue(variableInstance, value);
+    setVariableValue(variableInstance, value, deserialize);
   }
 
-  public void setVariableValue(VariableInstanceImpl variableInstance, Object value) {
+  public void setVariableValue(VariableInstanceImpl variableInstance, Object value, boolean deserialize) {
+    if (deserialize) {
+      value = variableInstance.type.convertJsonToInternalValue(value);
+    }
     variableInstance.setValue(value);
     if (updates!=null) {
       updates.isVariableInstancesChanged = true;
@@ -497,24 +509,10 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
     }
   }
 
-  /** for now only the workflowInstance will have a taskId.
-   * This implementation sketches the idea how to expand the implementation to support nested subtask creation.
-   * See UserTaskImpl for a note describing why taskId's are not set for user task activity instances. */
-  public String findTaskIdRecursive() {
-    if (taskId!=null) {
-      return taskId;
-    }
-    if (parent!=null) {
-      return parent.findTaskIdRecursive();
-    }
+  /** only activity instances that are associated with tasks have a taskid reference.
+   * workflow instances and multi instance containers of user tasks do not have taskids. 
+   * workflow instances have case ids. */
+  public TaskId findTaskIdRecursive() {
     return null;
-  }
-
-  public void setTaskId(String taskId) {
-    this.taskId = taskId;
-  }
-  
-  public String getTaskId() {
-    return taskId;
   }
 }

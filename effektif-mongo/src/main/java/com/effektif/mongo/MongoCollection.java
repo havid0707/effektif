@@ -20,7 +20,6 @@ import java.util.Map;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 
-import com.effektif.workflow.impl.WorkflowEngineImpl;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -31,7 +30,7 @@ import com.mongodb.WriteResult;
 
 public class MongoCollection {
   
-  public static final Logger log = WorkflowEngineImpl.log;
+  public static final Logger log = MongoDb.log;
   
   public DBCollection dbCollection;
   public boolean isPretty;
@@ -89,10 +88,14 @@ public class MongoCollection {
   }
 
   public BasicDBObject findAndModify(String description, DBObject query, DBObject update, DBObject fields) {
+    return findAndModify(description, query, update, fields, null, false, true, false);
+  }
+
+  public BasicDBObject findAndModify(String description, DBObject query, DBObject update, DBObject fields, DBObject sort, boolean remove, boolean returnNew, boolean upsert) {
     if (log.isDebugEnabled()) {
       log.debug("--"+dbCollection.getName()+"-> "+description+" q="+toString(query)+" u="+toString(update)+" f="+toString(fields));
     }
-    BasicDBObject dbObject = (BasicDBObject) dbCollection.findAndModify( query, fields, null, false, update, true, false );
+    BasicDBObject dbObject = (BasicDBObject) dbCollection.findAndModify(query, fields, sort, remove, update, returnNew, upsert);
     if (log.isDebugEnabled()) {
       log.debug("<-"+dbCollection.getName()+"-- "+(dbObject!=null ? toString(dbObject) : "null"));
     }

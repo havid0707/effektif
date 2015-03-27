@@ -18,7 +18,6 @@ package com.effektif.workflow.impl.data.types;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.types.Type;
 import com.effektif.workflow.impl.data.AbstractDataType;
 import com.effektif.workflow.impl.data.DataType;
@@ -32,13 +31,12 @@ public class ObjectTypeImpl<T extends Type> extends AbstractDataType<T> {
   
   public Map<String,ObjectFieldImpl> fields;
 
-  public ObjectTypeImpl(T typeApi, Class<?> valueClass, Configuration configuration) {
-    super(typeApi, valueClass, configuration);
-    initializeFields(configuration);
+  public ObjectTypeImpl() {
+    super((T)ObjectType.INSTANCE, Map.class);
   }
 
-  protected void initializeFields(Configuration configuration) {
-    // new ObjectFieldImpl(valueClass, fieldApi, configuration);
+  public ObjectTypeImpl(T typeApi, Class< ? > valueClass) {
+    super(typeApi, valueClass);
   }
 
   @Override

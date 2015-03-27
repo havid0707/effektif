@@ -20,8 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.effektif.workflow.impl.configuration.DefaultConfiguration;
-import com.effektif.workflow.impl.memory.MemoryEmailStore;
-import com.effektif.workflow.impl.memory.MemoryFileService;
 import com.effektif.workflow.impl.memory.MemoryIdentityService;
 import com.effektif.workflow.impl.util.Lists;
 import com.mongodb.DB;
@@ -29,6 +27,7 @@ import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.MongoCredential;
 import com.mongodb.ServerAddress;
+import com.mongodb.gridfs.GridFS;
 
 /**
  * @see <a href="https://github.com/effektif/effektif/wiki/Workflow-engine-types#mongodb-workflow-engine">MongoDB workflow engine</a>
@@ -39,30 +38,36 @@ public class MongoConfiguration extends DefaultConfiguration {
   
   protected List<ServerAddress> serverAddresses;
   protected String databaseName = "effektif";
+  protected String fileDatabaseName = "effektif-files";
   protected List<MongoCredential> credentials;
   protected String workflowsCollectionName = "workflows";
   protected String workflowInstancesCollectionName = "workflowInstances";
   protected String tasksCollectionName = "tasks";
+  protected String casesCollectionName = "cases";
   protected String jobsCollectionName = "jobs";
   protected String jobsArchivedCollectionName = "jobsArchived";
+  protected String filesCollectionName = "files";
+  protected String emailsCollectionName = "emails";
   protected boolean isPretty;
   protected MongoClientOptions.Builder optionBuilder = new MongoClientOptions.Builder();
   protected boolean storeWorkflowIdsAsStrings = false;
 
   public MongoConfiguration() {
     brewery.ingredient(this);
-    brewery.supplier(new MongoClientFactory(), MongoClient.class);
-    brewery.supplier(new MongoDbFactory(), DB.class);
+    brewery.supplier(new MongoClientSupplier(), MongoClient.class);
+    brewery.supplier(new MongoDbSupplier(), DB.class);
+    brewery.supplier(new MongoGridFSSupplier(), GridFS.class);
     brewery.ingredient(new MongoDb());
     brewery.ingredient(new MongoWorkflowStore());
     brewery.ingredient(new MongoWorkflowInstanceStore());
     brewery.ingredient(new MongoTaskStore());
+    brewery.ingredient(new MongoCaseStore());
     brewery.ingredient(new MongoJobStore());
+    brewery.ingredient(new MongoFileService());
+    brewery.ingredient(new MongoEmailStore());
     
     // TODO replace this with a default mongo identity service
     brewery.ingredient(new MemoryIdentityService());
-    brewery.ingredient(new MemoryFileService());
-    brewery.ingredient(new MemoryEmailStore());
   }
   
   public MongoConfiguration db(DB db) {
@@ -106,11 +111,11 @@ public class MongoConfiguration extends DefaultConfiguration {
     return serverAddresses!=null ? serverAddresses : DEFAULT_SERVER_ADDRESSES;
   }
 
-  public MongoConfiguration authentication(String userName, String database, char[] password) {
+  public MongoConfiguration authentication(String username, String password, String database) {
     if (credentials==null) {
       credentials = new ArrayList<>();
     }
-    credentials.add(MongoCredential.createMongoCRCredential(userName, database, password));
+    credentials.add(MongoCredential.createMongoCRCredential(username, database, password.toCharArray()));
     return this;
   }
   
@@ -201,6 +206,22 @@ public class MongoConfiguration extends DefaultConfiguration {
     this.tasksCollectionName = tasksCollectionName;
   }
 
+  public String getCasesCollectionName() {
+    return casesCollectionName;
+  }
+
+  public void setCasesCollectionName(String casesCollectionName) {
+    this.casesCollectionName = casesCollectionName;
+  }
+
+  public String getFilesCollectionName() {
+    return filesCollectionName;
+  }
+  
+  public void setFilesCollectionName(String filesCollectionName) {
+    this.filesCollectionName = filesCollectionName;
+  }
+
   public String getJobsCollectionName() {
     return jobsCollectionName;
   }
@@ -214,6 +235,13 @@ public class MongoConfiguration extends DefaultConfiguration {
   }
   public void setJobsArchivedCollectionName(String jobsArchivedCollectionName) {
     this.jobsArchivedCollectionName = jobsArchivedCollectionName;
+  }
+  
+  public String getEmailsCollectionName() {
+    return this.emailsCollectionName;
+  }
+  public void setEmailsCollectionName(String emailsCollectionName) {
+    this.emailsCollectionName = emailsCollectionName;
   }
 
   public boolean isPretty() {
@@ -234,6 +262,14 @@ public class MongoConfiguration extends DefaultConfiguration {
   
   public void setOptionBuilder(MongoClientOptions.Builder optionBuilder) {
     this.optionBuilder = optionBuilder;
+  }
+  
+  public String getFileDatabaseName() {
+    return fileDatabaseName;
+  }
+
+  public void setFileDatabaseName(String fileDatabaseName) {
+    this.fileDatabaseName = fileDatabaseName;
   }
 
   public MongoClientOptions.Builder getOptionBuilder() {

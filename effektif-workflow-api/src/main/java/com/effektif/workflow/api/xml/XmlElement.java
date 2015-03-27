@@ -20,13 +20,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.effektif.workflow.api.workflow.Scope;
-
 /** 
- * xml dom structure that is jsonnable with jackson
- * so that it can be serialized to/from json for rest service and db persistence. 
- * @see {@link Scope#get}#  
- * 
+ * XML DOM structure that is jsonnable with Jackson
+ * so that it can be serialized to/from JSON for REST service and database persistence.
+ *
  * @author Tom Baeyens
  */
 public class XmlElement {

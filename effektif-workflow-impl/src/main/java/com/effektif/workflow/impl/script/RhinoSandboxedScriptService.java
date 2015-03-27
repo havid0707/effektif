@@ -15,15 +15,14 @@
  */
 package com.effektif.workflow.impl.script;
 
+import org.mozilla.javascript.ClassShutter;
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.ContextFactory;
+import org.mozilla.javascript.NativeJavaObject;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.WrapFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import sun.org.mozilla.javascript.internal.ClassShutter;
-import sun.org.mozilla.javascript.internal.Context;
-import sun.org.mozilla.javascript.internal.ContextFactory;
-import sun.org.mozilla.javascript.internal.NativeJavaObject;
-import sun.org.mozilla.javascript.internal.Scriptable;
-import sun.org.mozilla.javascript.internal.WrapFactory;
 
 import com.effektif.workflow.impl.configuration.Brewable;
 import com.effektif.workflow.impl.configuration.Brewery;
@@ -32,7 +31,6 @@ import com.effektif.workflow.impl.configuration.Brewery;
 /**
  * @author Tom Baeyens
  */
-@SuppressWarnings("restriction")
 public class RhinoSandboxedScriptService extends RhinoScriptService implements ScriptService, Brewable {
 
   private static final Logger log = LoggerFactory.getLogger(RhinoSandboxedScriptService.class);
@@ -119,6 +117,7 @@ public class RhinoSandboxedScriptService extends RhinoScriptService implements S
   }
 
   public static class SandboxNativeJavaObject extends NativeJavaObject {
+    private static final long serialVersionUID = 1L;
     public SandboxNativeJavaObject(Scriptable scope, Object javaObject, Class staticType) {
       super(scope, javaObject, staticType);
     }

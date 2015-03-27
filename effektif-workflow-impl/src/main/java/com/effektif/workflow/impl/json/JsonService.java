@@ -21,12 +21,8 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.Map;
 
-import com.effektif.workflow.api.model.Message;
-import com.effektif.workflow.api.model.TriggerInstance;
 import com.effektif.workflow.impl.configuration.Brewable;
 import com.effektif.workflow.impl.configuration.Brewery;
-import com.effektif.workflow.impl.workflow.VariableImpl;
-import com.effektif.workflow.impl.workflow.WorkflowImpl;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +30,8 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 
 
 /**
+ * The API for converting model objects to and from JSON.
+ *
  * @author Tom Baeyens
  */
 public class JsonService implements Brewable {
@@ -108,40 +106,4 @@ public class JsonService implements Brewable {
       .readValue(jsonParser);
     return object;
   }
-  
-  
-  
-  public void deserializeTriggerInstance(TriggerInstance triggerInstance, WorkflowImpl workflow) {
-    Map<String, Object> triggerValues = triggerInstance.getData();
-    if (triggerValues!=null) {
-      Map<String,String> triggerOutputBindings = workflow.trigger!=null ? workflow.trigger.outputBindings : null;
-      for (String triggerKey: triggerValues.keySet()) {
-        Object jsonValue = triggerValues.get(triggerKey);
-        String variableId = triggerOutputBindings!=null ? triggerOutputBindings.get(triggerKey) : triggerKey;
-        VariableImpl variable = workflow.findVariableByIdLocal(variableId);
-        if (variable!=null && variable.type!=null) {
-          Object value = variable.type.convertJsonToInternalValue(jsonValue);
-          triggerValues.put(triggerKey, value);
-        }
-      }
-    }
-  }
-  
-  public void deserializeMessage(Message message, WorkflowImpl workflow) {
-    deserializeVariableValues(message.getData(), workflow);
-  }
-
-  protected void deserializeVariableValues(Map<String,Object> variableValues, WorkflowImpl workflow) {
-    if (variableValues!=null) {
-      for (String variableId: variableValues.keySet()) {
-        Object jsonValue = variableValues.get(variableId);
-        VariableImpl variable = workflow.findVariableByIdLocal(variableId);
-        if (variable!=null && variable.type!=null) {
-          Object value = variable.type.convertJsonToInternalValue(jsonValue);
-          variableValues.put(variableId, value);
-        }
-      }
-    }
-  }
-
 }

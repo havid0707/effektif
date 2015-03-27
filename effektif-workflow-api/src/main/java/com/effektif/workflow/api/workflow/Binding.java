@@ -15,19 +15,17 @@
  */
 package com.effektif.workflow.api.workflow;
 
-import java.beans.Expression;
 
 /**
  * A binding stores a value for an activity input parameter, such as a process
  * variable.
  *
  * <p>
- * A binding specifies a value in one of three possible ways:
+ * A binding specifies a value in one of two ways:
  * </p>
  * <ol>
  * <li>a fixed value</li>
- * <li>a reference to a workflow variable, with optionally field references</li>
- * <li>a list of bindings.</li>
+ * <li>an expression - see <a href="https://github.com/effektif/effektif/wiki/Expressions">Expressions</a>.</li>
  * </ol>
  *
  * @author Tom Baeyens
@@ -65,17 +63,17 @@ public class Binding<T> {
   }
   
   /** specifies how a dynamic value is to be fetched from the variables. 
-   * @see Expression */
+   * @see https://github.com/effektif/effektif/wiki/Expressions */
   public String getExpression() {
     return this.expression;
   }
   /** specifies how a dynamic value is to be fetched from the variables. 
-   * @see Expression */
+   * @see https://github.com/effektif/effektif/wiki/Expressions */
   public void setExpression(String expression) {
     this.expression = expression;
   }
   /** specifies how a dynamic value is to be fetched from the variables. 
-   * @see Expression */
+   * @see https://github.com/effektif/effektif/wiki/Expressions */
   public Binding expression(String expression) {
     this.expression = expression;
     return this;

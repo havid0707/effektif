@@ -1,5 +1,6 @@
-/* Copyright (c) 2014, Effektif GmbH.
- * 
+/*
+ * Copyright 2014 Effektif GmbH.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -10,24 +11,29 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. */
+ * limitations under the License.
+ */
 package com.effektif.workflow.test.implementation;
 
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Test;
 
-import com.effektif.workflow.api.activities.EmailTask;
 import com.effektif.workflow.api.activities.UserTask;
 import com.effektif.workflow.api.model.TriggerInstance;
 import com.effektif.workflow.api.model.UserId;
 import com.effektif.workflow.api.task.Task;
 import com.effektif.workflow.api.types.ListType;
+import com.effektif.workflow.api.types.Type;
 import com.effektif.workflow.api.types.UserIdType;
 import com.effektif.workflow.api.workflow.Workflow;
+import com.effektif.workflow.impl.WorkflowEngineImpl;
+import com.effektif.workflow.impl.WorkflowParser;
 import com.effektif.workflow.impl.identity.IdentityService;
 import com.effektif.workflow.impl.identity.User;
 import com.effektif.workflow.impl.util.Lists;
+import com.effektif.workflow.impl.workflow.ExpressionImpl;
+import com.effektif.workflow.impl.workflowinstance.WorkflowInstanceImpl;
 import com.effektif.workflow.test.WorkflowTest;
 
 
@@ -46,22 +52,26 @@ public class ExpressionTest extends WorkflowTest {
     configuration.get(IdentityService.class)
       .createUser(johndoe);
     
-    Workflow workflow = new Workflow()
-      .variable("initiatorId", new UserIdType())
-      .activity("1", new EmailTask()
-        .toExpression("initiatorId.email"));
+    assertEquals("johndoe@localhost", 
+            evaluate(new UserIdType(), "v", new UserId("johndoe"), "v.email"));
     
-    deploy(workflow);
-    
-    workflowEngine.start(new TriggerInstance()
-      .data("initiatorId", new UserId("johndoe"))
-      .workflowId(workflow.getId()));
-    
-    assertEquals("johndoe@localhost", getEmail(0).getTo().get(0));
+    assertEquals("John Doe", 
+            evaluate(new UserIdType(), "v", new UserId("johndoe"), "v.fullName"));
+
+    assertEquals("johndoe", 
+            evaluate(new UserIdType(), "v", new UserId("johndoe"), "v.id"));
+
+    assertEquals(new UserId("johndoe"), 
+            evaluate(new UserIdType(), "v", new UserId("johndoe"), "v"));
+
+    User user = (User) evaluate(new UserIdType(), "v", new UserId("johndoe"), "v.*");
+    assertEquals(new UserId("johndoe"),user.getId());
+    assertEquals("John Doe",user.getFullName());
+    assertEquals("johndoe@localhost",user.getEmail());
   }
 
   @Test
-  public void testExpressionListFlattening() {
+  public void testBindingExpressionListFlattening() {
     User johndoe = new User()
       .id("johndoe")
       .fullName("John Doe")
@@ -98,5 +108,24 @@ public class ExpressionTest extends WorkflowTest {
     
     Task task = taskService.findTasks(null).get(0);
     assertEquals(Lists.of(new UserId("johndoe"), new UserId("joesmoe"), new UserId("jackblack")), task.getCandidateIds());
+  }
+  
+  public Object evaluate(Type type, String variableId, Object value, String expression) {
+    Workflow workflow = new Workflow()
+      .variable(variableId, type);
+    
+    deploy(workflow);
+    
+    TriggerInstance triggerInstance = new TriggerInstance()
+      .data(variableId, value)
+      .workflowId(workflow.getId());
+    
+    WorkflowEngineImpl workflowEngineImpl = (WorkflowEngineImpl) workflowEngine;
+    WorkflowInstanceImpl workflowInstance = workflowEngineImpl.startInitialize(triggerInstance);
+  
+    ExpressionImpl expressionImpl = new ExpressionImpl();
+    expressionImpl.parse(expression, new WorkflowParser(configuration));
+    
+    return workflowInstance.getValue(expressionImpl);
   }
 }

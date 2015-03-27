@@ -23,7 +23,7 @@ import com.effektif.workflow.api.xml.XmlElement;
 import com.effektif.workflow.impl.WorkflowParser;
 import com.effektif.workflow.impl.bpmn.BpmnReader;
 import com.effektif.workflow.impl.bpmn.BpmnWriter;
-import com.effektif.workflow.impl.script.CompiledCondition;
+import com.effektif.workflow.impl.conditions.ConditionImpl;
 
 
 /**
@@ -40,7 +40,7 @@ public class TransitionImpl implements BpmnModel<Transition> {
 
   public ActivityImpl from;
   public ActivityImpl to;
-  public CompiledCondition condition;
+  public ConditionImpl condition;
 
 //  public Transition serialize() {
 //    Transition transition = new Transition();
@@ -71,7 +71,7 @@ public class TransitionImpl implements BpmnModel<Transition> {
     writer.writeBpmnAttribute(xml, "targetRef", transition.getTo());
   }
 
-  public void parse(Transition transition, ScopeImpl parent, WorkflowParser parser, Map<String, ActivityImpl> activitiesByDefaultTransitionId) {
+  public void parse(Transition transition, ScopeImpl parentImpl, Map<String, ActivityImpl> activitiesByDefaultTransitionId, WorkflowParser parser) {
     this.id = transition.getId();
     if (id!=null) {
       if (parser.transitionIds.contains(id)) {
@@ -81,9 +81,9 @@ public class TransitionImpl implements BpmnModel<Transition> {
       }
     }
     this.configuration = parser.configuration;
-    if (parent!=null) {
-      this.parent = parent;
-      this.workflow = parent.workflow;
+    if (parentImpl!=null) {
+      this.parent = parentImpl;
+      this.workflow = parentImpl.workflow;
     }
 
     ActivityImpl activityHavingThisAsDefault = activitiesByDefaultTransitionId.remove(id);
@@ -95,21 +95,23 @@ public class TransitionImpl implements BpmnModel<Transition> {
     if (fromId==null) {
       parser.addWarning("Transition has no 'from' specified");
     } else {
-      this.from = parent.getActivityByIdLocal(fromId);
+      this.from = parentImpl.getActivityByIdLocal(fromId);
       if (this.from!=null) {
         this.from.addOutgoingTransition(this);
         if (activityHavingThisAsDefault!=null && activityHavingThisAsDefault!=from) {
           parser.addWarning("Default transition '%s' does not leave from activity '%s'", id, activityHavingThisAsDefault.id);
         }
       } else {
-        parser.addError("Transition has an invalid value for 'from' (%s) : %s", fromId, parser.getExistingActivityIdsText(parent));
+        parser.addError("Transition has an invalid value for 'from' (%s) : %s", fromId, parser.getExistingActivityIdsText(parentImpl));
       }
     }
     String toId = null;
     if (transition.isToNext()) {
-      this.to = parent.getNextActivity(from);
+      this.to = parentImpl.getNextActivity(from);
       if (this.to!=null) {
         this.to.addIncomingTransition(this);
+        transition.to(this.to.getId());
+        transition.setToNext(null);
       } else {
         parser.addWarning("Transition has no next");
       }
@@ -118,16 +120,16 @@ public class TransitionImpl implements BpmnModel<Transition> {
       if (toId==null) {
         parser.addWarning("Transition has no 'to' specified");
       } else {
-        this.to = parent.getActivityByIdLocal(toId);
+        this.to = parentImpl.getActivityByIdLocal(toId);
         if (this.to!=null) {
           this.to.addIncomingTransition(this);
         } else {
-          parser.addError("Transition has an invalid value for 'to' (%s) : %s", toId, parser.getExistingActivityIdsText(parent));
+          parser.addError("Transition has an invalid value for 'to' (%s) : %s", toId, parser.getExistingActivityIdsText(parentImpl));
         }
       }
     }
     if (transition.getCondition()!=null) {
-      parser.pushContext(transition.toString(), condition, null);
+      parser.pushContext(transition.toString(), condition, null, null);
       this.condition = parser.parseCondition(transition.getCondition());
       parser.popContext();
     }

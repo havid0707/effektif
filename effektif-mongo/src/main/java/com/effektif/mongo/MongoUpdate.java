@@ -15,8 +15,6 @@ package com.effektif.mongo;
 
 import java.util.Map;
 
-import org.bson.types.ObjectId;
-
 import com.mongodb.BasicDBObject;
 
 
@@ -41,6 +39,11 @@ public class MongoUpdate {
     if (value!=null) {
       add("$set", prefix, field, value);
     }
+    return this;
+  }
+
+  public MongoUpdate unset(String field) {
+    set(field, null, null);
     return this;
   }
 

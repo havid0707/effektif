@@ -73,11 +73,10 @@ public class UserTask extends NoneTask {
   /** User to assign the task to when escalating. */
   protected Binding<UserId> escalateToId;
 
-  public UserTask() {
-  }
-
-  public UserTask(String id) {
-    super(id);
+  @Override
+  public UserTask id(String id) {
+    super.id(id);
+    return this;
   }
 
   public String getTaskName() {
@@ -151,17 +150,17 @@ public class UserTask extends NoneTask {
   }
   /** adds a candidate id value to the list */
   public UserTask candidateGroupId(String candidateGroupId) {
-    addCandidateBinding(new Binding().value(new GroupId(candidateGroupId)));
+    addCandidateGroupBinding(new Binding().value(new GroupId(candidateGroupId)));
     return this;
   }
   /** adds a candidate id value to the list */
   public UserTask candidateGroupId(GroupId candidateGroupId) {
-    addCandidateBinding(new Binding().value(candidateGroupId));
+    addCandidateGroupBinding(new Binding().value(candidateGroupId));
     return this;
   }
   /** adds a candidate id variable to the list */
   public UserTask candidateGroupExpression(String expression) {
-    addCandidateBinding(new Binding().expression(expression));
+    addCandidateGroupBinding(new Binding().expression(expression));
     return this;
   }
   protected void addCandidateGroupBinding(Binding<GroupId> candidateGroupBinding) {
@@ -324,12 +323,6 @@ public class UserTask extends NoneTask {
   @Override
   public UserTask timer(Timer timer) {
     super.timer(timer);
-    return this;
-  }
-
-  @Override
-  public UserTask id(String id) {
-    super.id(id);
     return this;
   }
 

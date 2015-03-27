@@ -15,15 +15,17 @@
  */
 package com.effektif.mongo.test;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.effektif.mongo.MongoMemoryConfiguration;
 import com.effektif.workflow.api.Configuration;
-import com.effektif.workflow.impl.email.TestEmailService;
+import com.effektif.workflow.impl.email.TestOutgoingEmailService;
 import com.effektif.workflow.test.TestSuiteHelper;
 import com.mongodb.DB;
 
 
+@Ignore
 public class MongoMemoryApiTest {
   
   @Test
@@ -35,13 +37,13 @@ public class MongoMemoryApiTest {
 
     TestSuiteHelper.run(configuration
       // use the next line if you only want to run 1 test
-      // , CallTest.class, "testCallActivity"
+      //  , CaseTest.class, "testCaseCrud"
       );
   }
 
   public static Configuration createMongoMemoryWorkflowEngineConfiguration() {
     return new MongoMemoryConfiguration()
-      .ingredient(new TestEmailService())
+      .ingredient(new TestOutgoingEmailService())
       .prettyPrint()
       .synchronous()
       .storeWorkflowIdsAsStrings();

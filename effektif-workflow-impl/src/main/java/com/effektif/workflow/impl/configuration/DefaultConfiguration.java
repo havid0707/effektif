@@ -21,6 +21,8 @@ import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.WorkflowEngine;
 import com.effektif.workflow.api.task.TaskService;
 import com.effektif.workflow.impl.AsynchronousExecutorService;
+import com.effektif.workflow.impl.CaseServiceImpl;
+import com.effektif.workflow.impl.ConditionServiceImpl;
 import com.effektif.workflow.impl.SimpleWorkflowCache;
 import com.effektif.workflow.impl.SynchronousExecutorService;
 import com.effektif.workflow.impl.TaskServiceImpl;
@@ -28,13 +30,12 @@ import com.effektif.workflow.impl.WorkflowEngineConfiguration;
 import com.effektif.workflow.impl.WorkflowEngineImpl;
 import com.effektif.workflow.impl.activity.ActivityTypeService;
 import com.effektif.workflow.impl.data.DataTypeService;
-import com.effektif.workflow.impl.email.DefaultEmailServiceSupplier;
-import com.effektif.workflow.impl.email.EmailServiceImpl;
+import com.effektif.workflow.impl.email.OutgoingEmailServiceImpl;
+import com.effektif.workflow.impl.email.OutgoingEmailServiceSupplier;
 import com.effektif.workflow.impl.job.JobServiceImpl;
-import com.effektif.workflow.impl.json.DefaultObjectMapperSupplier;
 import com.effektif.workflow.impl.json.JsonService;
+import com.effektif.workflow.impl.json.ObjectMapperSupplier;
 import com.effektif.workflow.impl.script.RhinoScriptService;
-import com.effektif.workflow.impl.script.StandardScriptService;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -48,6 +49,8 @@ public abstract class DefaultConfiguration implements Configuration {
     brewery = new Brewery();
     brewery.ingredient(this);
     registerDefaultActivityTypeService();
+    registerDefaultCaseService();
+    registerDefaultConditionService();
     registerDefaultDataTypeService();
     registerDefaultEmailService();
     registerDefaultExecutorService();
@@ -62,6 +65,10 @@ public abstract class DefaultConfiguration implements Configuration {
     registerDefaultWorkflowEngine();
   }
   
+  public void registerDefaultCaseService() {
+    brewery.ingredient(new CaseServiceImpl());
+  }
+
   public WorkflowEngine getWorkflowEngine() {
     return brewery.get(WorkflowEngine.class);
   }
@@ -87,6 +94,10 @@ public abstract class DefaultConfiguration implements Configuration {
     brewery.ingredient(new RhinoScriptService());
   }
 
+  protected void registerDefaultConditionService() {
+    brewery.ingredient(new ConditionServiceImpl());
+  }
+
   protected void registerDefaultJsonService() {
     brewery.ingredient(new JsonService());
   }
@@ -104,7 +115,7 @@ public abstract class DefaultConfiguration implements Configuration {
   }
   
   protected void registerDefaultObjectMapper() {
-    brewery.supplier(new DefaultObjectMapperSupplier(), ObjectMapper.class);
+    brewery.supplier(new ObjectMapperSupplier(), ObjectMapper.class);
   }
 
   protected void registerDefaultJsonFactory() {
@@ -120,7 +131,7 @@ public abstract class DefaultConfiguration implements Configuration {
   }
 
   protected void registerDefaultEmailService() {
-    brewery.supplier(new DefaultEmailServiceSupplier(), EmailServiceImpl.class);
+    brewery.supplier(new OutgoingEmailServiceSupplier(), OutgoingEmailServiceImpl.class);
   }
   
   public DefaultConfiguration ingredient(Object ingredient) {

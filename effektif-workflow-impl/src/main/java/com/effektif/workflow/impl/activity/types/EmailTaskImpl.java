@@ -15,11 +15,13 @@
  */
 package com.effektif.workflow.impl.activity.types;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.effektif.workflow.api.activities.EmailTask;
 import com.effektif.workflow.api.model.Attachment;
+import com.effektif.workflow.api.model.FileId;
 import com.effektif.workflow.api.model.GroupId;
 import com.effektif.workflow.api.model.UserId;
 import com.effektif.workflow.api.types.GroupIdType;
@@ -31,8 +33,11 @@ import com.effektif.workflow.impl.activity.AbstractActivityType;
 import com.effektif.workflow.impl.bpmn.BpmnReader;
 import com.effektif.workflow.impl.bpmn.BpmnWriter;
 import com.effektif.workflow.impl.bpmn.ServiceTaskType;
-import com.effektif.workflow.impl.email.Email;
-import com.effektif.workflow.impl.email.EmailService;
+import com.effektif.workflow.impl.email.OutgoingEmail;
+import com.effektif.workflow.impl.email.OutgoingEmailService;
+import com.effektif.workflow.impl.file.File;
+import com.effektif.workflow.impl.file.FileAttachment;
+import com.effektif.workflow.impl.file.FileService;
 import com.effektif.workflow.impl.identity.IdentityService;
 import com.effektif.workflow.impl.template.Hint;
 import com.effektif.workflow.impl.template.TextTemplate;
@@ -48,8 +53,9 @@ public class EmailTaskImpl extends AbstractActivityType<EmailTask> {
 
   private static final String BPMN_ELEMENT_NAME = "serviceTask";
   
-  protected EmailService emailService; 
+  protected OutgoingEmailService outgoingEmailService; 
   protected IdentityService identityService; 
+  protected FileService fileService; 
 
   protected BindingImpl<String> fromEmailAddress;
 
@@ -69,7 +75,7 @@ public class EmailTaskImpl extends AbstractActivityType<EmailTask> {
   protected TextTemplate bodyText;
   protected TextTemplate bodyHtml;
   
-  protected List<BindingImpl<Attachment>> attachments;
+  protected List<BindingImpl<FileId>> attachmentFileIds;
 
   public EmailTaskImpl() {
     super(EmailTask.class);
@@ -81,7 +87,7 @@ public class EmailTaskImpl extends AbstractActivityType<EmailTask> {
     List<String> cc = resolveEmailAddresses(ccEmailAddresses, ccUserIds, ccGroupIds, activityInstance);
     List<String> bcc = resolveEmailAddresses(bccEmailAddresses, bccUserIds, bccGroupIds, activityInstance);
     
-    Email email = new Email()
+    OutgoingEmail email = new OutgoingEmail()
       .from(resolveFrom(activityInstance))
       .to(to)
       .cc(cc)
@@ -89,9 +95,19 @@ public class EmailTaskImpl extends AbstractActivityType<EmailTask> {
       .subject(resolve(subject, activityInstance))
       .bodyText(resolve(bodyText, activityInstance))
       .bodyHtml(resolve(bodyHtml, activityInstance));
-    email.setAttachments(activityInstance.getValues(attachments));
     
-    emailService.send(email);
+    List<FileId> fileIds = activityInstance.getValues(attachmentFileIds);
+    if (fileIds!=null && !fileIds.isEmpty()) {
+      List<File> files = fileService.getFilesByIds(fileIds);
+      List<Attachment> attachments = new ArrayList<>();
+      for (File file : files) {
+        FileAttachment fileAttachment = FileAttachment.createFileAttachment(file, fileService);
+        attachments.add(fileAttachment);
+      }
+      email.setAttachments(attachments);
+    }
+    
+    outgoingEmailService.send(email);
     
     activityInstance.onwards();
   }
@@ -135,7 +151,7 @@ public class EmailTaskImpl extends AbstractActivityType<EmailTask> {
   protected void addEmailAddresses(List<String> allEmailAddresses, List<String> emailAddresses) {
     if (emailAddresses!=null) {
       for (String emailAddress: emailAddresses) {
-        String validatedEmailAddress = emailService.validate(emailAddress);
+        String validatedEmailAddress = outgoingEmailService.validate(emailAddress);
         if (validatedEmailAddress!=null) {
           allEmailAddresses.add(validatedEmailAddress);
         }
@@ -147,8 +163,9 @@ public class EmailTaskImpl extends AbstractActivityType<EmailTask> {
   public void parse(ActivityImpl activityImpl, EmailTask activity, WorkflowParser parser) {
     super.parse(activityImpl, activity, parser);
     
-    emailService = parser.getConfiguration(EmailService.class);
+    outgoingEmailService = parser.getConfiguration(OutgoingEmailService.class);
     identityService = parser.getConfiguration(IdentityService.class);
+    fileService = parser.getConfiguration(FileService.class);
 
     fromEmailAddress = parser.parseBinding(activity.getFromEmailAddress(), "fromEmailAddress");
 
@@ -168,7 +185,7 @@ public class EmailTaskImpl extends AbstractActivityType<EmailTask> {
     bodyText = parser.parseTextTemplate(activity.getBodyText(), Hint.EMAIL, Hint.EMAIL_BODY_TEXT);
     bodyHtml = parser.parseTextTemplate(activity.getBodyHtml(), Hint.EMAIL, Hint.EMAIL_BODY_HTML, Hint.HTML);
     
-    attachments = parser.parseBindings(activity.getAttachments(), "attachments");
+    attachmentFileIds = parser.parseBindings(activity.getAttachmentFileIds(), "attachmentFileIds");
   }
 
   @Override

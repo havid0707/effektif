@@ -15,10 +15,14 @@
  */
 package com.effektif.workflow.impl.data.types;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Map;
 
 import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.types.JavaBeanType;
+import com.effektif.workflow.api.types.Type;
+import com.effektif.workflow.impl.data.DataType;
 import com.effektif.workflow.impl.data.DataTypeService;
 import com.effektif.workflow.impl.data.InvalidValueException;
 import com.effektif.workflow.impl.data.TypeGenerator;
@@ -30,24 +34,52 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 /**
  * @author Tom Baeyens
  */
-public class JavaBeanTypeImpl<T extends JavaBeanType> extends ObjectTypeImpl<T> {
+public class JavaBeanTypeImpl<T extends Type> extends ObjectTypeImpl<T> {
   
   public JsonService jsonService;
   
-  public JavaBeanTypeImpl(Configuration configuration) {
-    super((T) new JavaBeanType(), null, configuration);
+  public JavaBeanTypeImpl() {
+    super(null, null);
   }
   
-  public JavaBeanTypeImpl(Class<?> valueClass, Configuration configuration) {
-    super((T) new JavaBeanType(valueClass), valueClass, configuration);
+  public JavaBeanTypeImpl(T typeApi, Class< ? > valueClass) {
+    super(typeApi, valueClass);
   }
-  
-  public JavaBeanTypeImpl(T typeApi, Configuration configuration) {
-    super(typeApi, typeApi.getJavaClass(), configuration);
+
+  public void setConfiguration(Configuration configuration) {
+    super.setConfiguration(configuration);
     this.jsonService = configuration.get(JsonService.class);
+    initializeFields();
   }
   
-  protected void initializeFields(Configuration configuration) {
+  protected void initializeFields() {
+    scanFields(valueClass);
+  }
+
+  protected void scanFields(Class< ? > valueType) {
+    if (valueType!=null) {
+      for (Field field : valueType.getDeclaredFields()) {
+        if (!Modifier.isStatic(field.getModifiers())) {
+          addField(field);
+        }
+      }
+      Class< ? > superclass = valueType.getSuperclass();
+      if (superclass != Object.class) {
+        scanFields(superclass);
+      }
+    }
+  }
+
+  protected void addField(Field field) {
+    DataTypeService dataTypeService = configuration.get(DataTypeService.class);
+    DataType dataType = dataTypeService.getDataTypeByValue(field.getType());
+    JavaBeanFieldImpl javaBeanField = new JavaBeanFieldImpl(field, dataType);
+    addField(javaBeanField);
+  }
+
+  @Override
+  public boolean isStatic() {
+    return false;
   }
 
   @Override

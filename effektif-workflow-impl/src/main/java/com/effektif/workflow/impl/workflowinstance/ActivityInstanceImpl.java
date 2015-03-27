@@ -25,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.effektif.workflow.api.WorkflowEngine;
+import com.effektif.workflow.api.model.TaskId;
+import com.effektif.workflow.api.model.WorkflowInstanceId;
 import com.effektif.workflow.api.workflowinstance.ActivityInstance;
 import com.effektif.workflow.impl.util.Lists;
 import com.effektif.workflow.impl.util.Time;
@@ -52,21 +54,25 @@ public class ActivityInstanceImpl extends ScopeInstanceImpl {
 
   public static final Logger log = LoggerFactory.getLogger(WorkflowEngine.class);
 
+  public String id;
   public ActivityImpl activity;
   public String workState;
-  public String calledWorkflowInstanceId;
+  public WorkflowInstanceId calledWorkflowInstanceId;
   public List<String> transitionsTaken;
+  public TaskId taskId;
   
   public ActivityInstanceImpl() {
   }
 
   public ActivityInstanceImpl(ScopeInstanceImpl parent, ActivityImpl activity, String id) {
-    super(parent, activity, id);
+    super(parent, activity);
+    this.id = id;
     this.activity = activity;
   }
 
   public ActivityInstance toActivityInstance() {
     ActivityInstance activityInstance = new ActivityInstance();
+    activityInstance.setId(id);
     activityInstance.setActivityId(activity.id);
     activityInstance.setCalledWorkflowInstanceId(calledWorkflowInstanceId);
     toScopeInstance(activityInstance);
@@ -224,11 +230,11 @@ public class ActivityInstanceImpl extends ScopeInstanceImpl {
     return false;
   }
 
-  public void setCalledWorkflowInstanceId(String calledWorkflowInstanceId) {
+  public void setCalledWorkflowInstanceId(WorkflowInstanceId calledWorkflowInstanceId) {
     this.calledWorkflowInstanceId = calledWorkflowInstanceId;
   }
   
-  public String getCalledWorkflowInstanceId() {
+  public WorkflowInstanceId getCalledWorkflowInstanceId() {
     return calledWorkflowInstanceId;
   }
 
@@ -251,5 +257,14 @@ public class ActivityInstanceImpl extends ScopeInstanceImpl {
       return true;
     }
     return super.hasActivityInstance(activityInstanceId);
+  }
+
+  @Override
+  public TaskId findTaskIdRecursive() {
+    return taskId!=null ? taskId : parent.findTaskIdRecursive();
+  }
+  
+  public String getId() {
+    return id;
   }
 }

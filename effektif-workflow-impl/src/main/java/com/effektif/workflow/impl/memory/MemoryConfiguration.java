@@ -19,6 +19,9 @@ import com.effektif.workflow.impl.configuration.DefaultConfiguration;
 
 
 /**
+ * A {@link java.util.Map}-based {@link com.effektif.workflow.api.Configuration}
+ * that stores workflows and workflow instances in memory without serialisation or de-serialisation.
+ *
  * @see <a href="https://github.com/effektif/effektif/wiki/Workflow-engine-types#in-memory-workflow-engine">In-memory workflow engine</a>
  * @author Tom Baeyens
  */
@@ -28,6 +31,7 @@ public class MemoryConfiguration extends DefaultConfiguration {
     brewery.ingredient(new MemoryWorkflowStore());
     brewery.ingredient(new MemoryWorkflowInstanceStore());
     brewery.ingredient(new MemoryTaskStore());
+    brewery.ingredient(new MemoryCaseStore());
     brewery.ingredient(new MemoryJobStore());
     brewery.ingredient(new MemoryAdapterService());
     brewery.ingredient(new MemoryIdentityService());

@@ -18,21 +18,26 @@ package com.effektif.mongo;
 import static com.effektif.mongo.MongoHelper.*;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.bson.types.ObjectId;
+import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 
 import com.effektif.mongo.MongoWorkflowStore.FieldsWorkflow;
 import com.effektif.workflow.api.acl.Access;
+import com.effektif.workflow.api.model.TaskId;
 import com.effektif.workflow.api.model.UserId;
+import com.effektif.workflow.api.model.WorkflowId;
+import com.effektif.workflow.api.model.WorkflowInstanceId;
 import com.effektif.workflow.api.query.OrderBy;
 import com.effektif.workflow.api.query.OrderDirection;
 import com.effektif.workflow.api.task.Task;
 import com.effektif.workflow.api.task.TaskQuery;
 import com.effektif.workflow.impl.TaskStore;
-import com.effektif.workflow.impl.WorkflowEngineImpl;
 import com.effektif.workflow.impl.configuration.Brewable;
 import com.effektif.workflow.impl.configuration.Brewery;
 import com.effektif.workflow.impl.json.JsonService;
@@ -44,7 +49,7 @@ import com.mongodb.DBObject;
 
 public class MongoTaskStore implements TaskStore, Brewable {
   
-  public static final Logger log = WorkflowEngineImpl.log;
+  public static final Logger log = MongoDb.log;
   
   protected JsonService jsonService;
   protected MongoCollection tasksCollection;
@@ -53,9 +58,14 @@ public class MongoTaskStore implements TaskStore, Brewable {
     String _ID = "_id";
     String NAME = "name";
     String ORGANIZATION_ID = "organizationId";
-    String ASSIGNEE = "assignee";
+    String ASSIGNEE_ID = "assigneeId";
     String SUBTASK_IDS = "subtaskIds";
     String LAST_UPDATED = "lastUpdated";
+    String COMPLETED = "completed";
+    String ACTIVITY_NOTIFY = "activityNotify";
+    String HAS_WORKFLOW_FORM = "hasWorkflowForm";
+    String WORKFLOW_ID = "workflowId";
+    String WORKFLOW_INSTANCE_ID = "workflowInstanceId";
   }
 
   public interface FieldsUserReference {
@@ -71,8 +81,8 @@ public class MongoTaskStore implements TaskStore, Brewable {
   }
 
   @Override
-  public String generateTaskId() {
-    return new ObjectId().toString();
+  public TaskId generateTaskId() {
+    return new TaskId(new ObjectId().toString());
   }
 
   @Override
@@ -83,29 +93,46 @@ public class MongoTaskStore implements TaskStore, Brewable {
   }
 
   @Override
-  public Task assignTask(String taskId, UserId assignee) {
+  public Task assignTask(TaskId taskId, UserId assignee) {
     BasicDBObject query = new MongoQuery()
-      ._id(taskId)
+      ._id(taskId.getInternal())
       .access(Access.EDIT)
       .get();
-    BasicDBObject dbAssignee = new BasicDBObject(FieldsUserReference.ID, assignee.getId());
     BasicDBObject update = new MongoUpdate()
-      .set(FieldsTask.ASSIGNEE, dbAssignee)
+      .set(FieldsTask.ASSIGNEE_ID, assignee.getInternal())
       .set(FieldsTask.LAST_UPDATED, Time.now().toDate())
       .get();
     BasicDBObject dbTask = tasksCollection.findAndModify("assign-task", query, update);
     return mongoToTask(dbTask);
   }
   
+
   @Override
-  public Task addSubtask(String parentId, Task subtask) {
-    String subtaskId = subtask.getId();
+  public Task completeTask(TaskId taskId) {
     BasicDBObject query = new MongoQuery()
-      ._id(parentId)
+      ._id(taskId.getInternal())
       .access(Access.EDIT)
       .get();
     BasicDBObject update = new MongoUpdate()
-      .push(FieldsTask.SUBTASK_IDS, subtaskId)
+      .set(FieldsTask.COMPLETED, true)
+      .set(FieldsTask.LAST_UPDATED, Time.now().toDate())
+      .unset(FieldsTask.ACTIVITY_NOTIFY)
+      .unset(FieldsTask.HAS_WORKFLOW_FORM)
+      .get();
+    // this findAndModify returns the old version
+    BasicDBObject dbTask = tasksCollection.findAndModify("complete-task", query, update, null, null, false, false, false);
+    return mongoToTask(dbTask);
+  }
+  
+  @Override
+  public Task addSubtask(TaskId parentId, Task subtask) {
+    TaskId subtaskId = subtask.getId();
+    BasicDBObject query = new MongoQuery()
+      ._id(parentId.getInternal())
+      .access(Access.EDIT)
+      .get();
+    BasicDBObject update = new MongoUpdate()
+      .push(FieldsTask.SUBTASK_IDS, new ObjectId(subtaskId.getInternal()))
       .set(FieldsTask.LAST_UPDATED, Time.now().toDate())
       .get();
     BasicDBObject dbTask = tasksCollection.findAndModify("add-subtask", query, update);
@@ -115,7 +142,7 @@ public class MongoTaskStore implements TaskStore, Brewable {
   @Override
   public List<Task> findTasks(TaskQuery query) {
     List<Task> tasks = new ArrayList<>();
-    BasicDBObject dbQuery = createTaskQuery(query, Access.VIEW).get();
+    BasicDBObject dbQuery = createDbQuery(query, Access.VIEW).get();
     DBCursor dbCursor = tasksCollection.find("find-tasks", dbQuery);
     if (query.getLimit()!=null) {
       dbCursor.limit(query.getLimit());
@@ -133,42 +160,90 @@ public class MongoTaskStore implements TaskStore, Brewable {
 
   @Override
   public void deleteTasks(TaskQuery query) {
-    BasicDBObject dbQuery = createTaskQuery(query, Access.EDIT).get();
+    BasicDBObject dbQuery = createDbQuery(query, Access.EDIT).get();
     tasksCollection.remove("delete-tasks", dbQuery);
   }
 
   public BasicDBObject taskToMongo(Task task) {
-    Map<String,Object> jsonWorkflow = jsonService.objectToJsonMap(task);
-    BasicDBObject dbWorkflow = new BasicDBObject(); 
-    jsonWorkflow.remove("id");
-    jsonWorkflow.remove(FieldsTask.ORGANIZATION_ID);
-    dbWorkflow.putAll(jsonWorkflow);
-    writeId(dbWorkflow, FieldsWorkflow._ID, task.getId());
-    writeIdOpt(dbWorkflow, FieldsWorkflow.ORGANIZATION_ID, task.getOrganizationId());
-    return dbWorkflow;
+    Map<String,Object> jsonTask = jsonService.objectToJsonMap(task);
+    BasicDBObject dbTask = new BasicDBObject(); 
+    jsonTask.remove("id");
+    jsonTask.remove(FieldsTask.ORGANIZATION_ID);
+    jsonTask.remove(FieldsTask.LAST_UPDATED);
+    jsonTask.remove(FieldsTask.WORKFLOW_ID);
+    jsonTask.remove(FieldsTask.WORKFLOW_INSTANCE_ID);
+    dbTask.putAll(jsonTask);
+    writeId(dbTask, FieldsWorkflow._ID, task.getId());
+    writeIdOpt(dbTask, FieldsTask.ORGANIZATION_ID, task.getOrganizationId());
+    writeIdOptNew(dbTask, FieldsTask.WORKFLOW_ID, task.getWorkflowId());
+    writeIdOptNew(dbTask, FieldsTask.WORKFLOW_INSTANCE_ID, task.getWorkflowInstanceId());
+    writeTimeOpt(dbTask, FieldsTask.LAST_UPDATED, task.getLastUpdated());
+    List<String> subtaskIdStrings = (List<String>) dbTask.get(FieldsTask.SUBTASK_IDS);
+    if (subtaskIdStrings!=null) {
+      List<ObjectId> subtaskIdsInternal = new ArrayList<>();
+      for (String subtaskIdString: subtaskIdStrings) {
+        subtaskIdsInternal.add(new ObjectId(subtaskIdString));
+      }
+      dbTask.put(FieldsTask.SUBTASK_IDS, subtaskIdsInternal);
+    }
+    return dbTask;
   }
 
   public Task mongoToTask(BasicDBObject dbTask) {
-    ObjectId taskId = (ObjectId) dbTask.remove(FieldsWorkflow._ID);
-    ObjectId organizationId = (ObjectId) dbTask.remove(FieldsWorkflow.ORGANIZATION_ID);
+    ObjectId taskId = (ObjectId) dbTask.remove(FieldsTask._ID);
+    List<ObjectId> subtaskIdInternals = (List<ObjectId>) dbTask.remove(FieldsTask.SUBTASK_IDS);
+    ObjectId organizationId = (ObjectId) dbTask.remove(FieldsTask.ORGANIZATION_ID);
+    ObjectId workflowId = (ObjectId) dbTask.remove(FieldsTask.WORKFLOW_ID);
+    ObjectId workflowInstanceId = (ObjectId) dbTask.remove(FieldsTask.WORKFLOW_INSTANCE_ID);
+    Date lastUpdated = (Date) dbTask.remove(FieldsTask.LAST_UPDATED);
     Task task = jsonService.jsonMapToObject(dbTask, Task.class);
     if (taskId!=null) {
-      task.setId(taskId.toString());
+      task.setId(new TaskId(taskId.toString()));
+    }
+    if (subtaskIdInternals!=null) {
+      List<TaskId> subtaskIds = new ArrayList<>(subtaskIdInternals.size());
+      for (ObjectId subtaskId: subtaskIdInternals) {
+        subtaskIds.add(new TaskId(subtaskId.toString()));
+      }
+      task.setSubtaskIds(subtaskIds);
     }
     if (organizationId!=null) {
       task.setOrganizationId(organizationId.toString());
     }
+    if (workflowId!=null) {
+      task.setWorkflowId(new WorkflowId(workflowId.toString()));
+    }
+    if (workflowInstanceId!=null) {
+      task.setWorkflowInstanceId(new WorkflowInstanceId(workflowInstanceId.toString()));
+    }
+    if (lastUpdated!=null) {
+      task.setLastUpdated(new LocalDateTime(lastUpdated));
+    }
+    
     return task;
   }
   
   /** builds the query and ensures VIEW access */
-  protected MongoQuery createTaskQuery(TaskQuery query, String... accessActions) {
+  protected MongoQuery createDbQuery(TaskQuery query, String... accessActions) {
+    if (query==null) {
+      query = new TaskQuery();
+    }
     MongoQuery mongoQuery = new MongoQuery();
     if (accessActions!=null) {
       mongoQuery.access(accessActions);
     }
     if (query.getTaskId()!=null) {
-      mongoQuery.equal(FieldsTask._ID, new ObjectId(query.getTaskId()));
+      mongoQuery.equal(FieldsTask._ID, query.getTaskId().getInternal());
+    }
+    if (query.getTaskName()!=null) {
+      mongoQuery.equal(FieldsTask.NAME, Pattern.compile(query.getTaskName()));
+    }
+    if (query.getCompleted()!=null) {
+      if (query.getCompleted()) {
+        mongoQuery.equal(FieldsTask.COMPLETED, true);
+      } else {
+        mongoQuery.doesNotExist(FieldsTask.COMPLETED);
+      }
     }
     return mongoQuery;
   }

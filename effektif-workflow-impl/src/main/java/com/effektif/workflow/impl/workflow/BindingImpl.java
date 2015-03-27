@@ -15,7 +15,6 @@
  */
 package com.effektif.workflow.impl.workflow;
 
-import com.effektif.workflow.impl.data.DataType;
 
 
 /**
@@ -23,7 +22,6 @@ import com.effektif.workflow.impl.data.DataType;
  */
 public class BindingImpl<T> {
 
-  public DataType dataType;
   public T value;
   public ExpressionImpl expression;
   

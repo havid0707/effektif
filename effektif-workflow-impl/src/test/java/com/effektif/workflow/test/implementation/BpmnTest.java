@@ -21,10 +21,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-import com.effektif.workflow.api.Configuration;
 import junit.framework.TestCase;
+
 import org.junit.Test;
 
+import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.activities.EndEvent;
 import com.effektif.workflow.api.activities.StartEvent;
 import com.effektif.workflow.api.activities.UserTask;
@@ -101,11 +102,11 @@ public class BpmnTest extends TestCase {
     ActivityTypeService activityTypeService = testConfiguration.get(ActivityTypeService.class);
 
     Workflow workflow = new Workflow()
-      .activity(new StartEvent("s")
+      .activity("s", new StartEvent()
         .transitionTo("t"))
-      .activity(new UserTask("t")
+      .activity("t", new UserTask()
         .transitionTo("e"))
-      .activity(new EndEvent("e"));
+      .activity("e", new EndEvent());
 
     System.err.println(BpmnWriter.writeBpmnDocumentString(workflow, configuration));
   }

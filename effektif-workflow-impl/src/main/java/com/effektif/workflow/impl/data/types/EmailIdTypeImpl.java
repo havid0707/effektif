@@ -24,8 +24,8 @@ import com.effektif.workflow.api.xml.XmlElement;
 import com.effektif.workflow.impl.data.AbstractDataType;
 import com.effektif.workflow.impl.data.InvalidValueException;
 import com.effektif.workflow.impl.data.TypedValueImpl;
-import com.effektif.workflow.impl.email.Email;
 import com.effektif.workflow.impl.email.EmailStore;
+import com.effektif.workflow.impl.email.PersistentEmail;
 import com.effektif.workflow.impl.util.Exceptions;
 
 
@@ -35,12 +35,16 @@ import com.effektif.workflow.impl.util.Exceptions;
  */
 public class EmailIdTypeImpl extends AbstractDataType<EmailIdType> {
   
-  public EmailIdTypeImpl(Configuration configuration) {
-    this(EmailIdType.INSTANCE, configuration);
+  protected EmailTypeImpl emailTypeImpl = null;
+  
+  public EmailIdTypeImpl() {
+    super(EmailIdType.INSTANCE, EmailId.class);
   }
-
-  public EmailIdTypeImpl(EmailIdType emailIdType, Configuration configuration) {
-    super(emailIdType, EmailId.class, configuration);
+  
+  @Override
+  public void setConfiguration(Configuration configuration) {
+    super.setConfiguration(configuration);
+    this.emailTypeImpl = getSingletonDataType(EmailTypeImpl.class);
   }
 
   @Override
@@ -50,18 +54,18 @@ public class EmailIdTypeImpl extends AbstractDataType<EmailIdType> {
 
   @Override
   public Object convertInternalToJsonValue(Object internalValue) {
-    return internalValue!=null ? ((EmailId)internalValue).getId() : null;
+    return internalValue!=null ? ((EmailId)internalValue).getInternal() : null;
   }
   
   @Override
   public TypedValueImpl dereference(Object value, String fieldName) {
     EmailId emailId = (EmailId) value;
     EmailStore emailStore = configuration.get(EmailStore.class);
-    Email email = emailStore.findEmailById(emailId);
+    PersistentEmail email = emailId!=null ? emailStore.findEmailById(emailId) : null;
     if ("*".equals(fieldName)) {
-      return new TypedValueImpl(new EmailTypeImpl(configuration), email);
+      return new TypedValueImpl(emailTypeImpl, email);
     }
-    return new EmailTypeImpl(configuration).dereference(email, fieldName);
+    return emailTypeImpl.dereference(email, fieldName);
   }
 
   @Override

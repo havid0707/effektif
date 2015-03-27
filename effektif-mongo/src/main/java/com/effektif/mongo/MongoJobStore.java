@@ -153,9 +153,9 @@ public class MongoJobStore implements JobStore, Brewable {
     job.retryDelay = readLong(dbJob, JobFields.retryDelay);
     job.organizationId = readId(dbJob, JobFields.organizationId);
     job.sourceWorkflowId = readId(dbJob, JobFields.processId);
-    job.taskId = readId(dbJob, JobFields.taskId);
-    job.workflowId = readId(dbJob, JobFields.workflowId);
-    job.workflowInstanceId = readId(dbJob, JobFields.workflowInstanceId);
+    job.taskId = readTaskId(dbJob, JobFields.taskId);
+    job.workflowId = readWorkflowId(dbJob, JobFields.workflowId);
+    job.workflowInstanceId = readWorkflowInstanceId(dbJob, JobFields.workflowInstanceId);
     job.activityInstanceId = readId(dbJob, JobFields.activityInstanceId);
     readExecutions(job, readList(dbJob, JobFields.executions));
     readLock(job, readBasicDBObject(dbJob, JobFields.lock));
@@ -198,9 +198,9 @@ public class MongoJobStore implements JobStore, Brewable {
     writeIdOpt(dbJob, JobFields.organizationId, job.organizationId);
     writeIdOpt(dbJob, JobFields.processId, job.sourceWorkflowId);
     writeIdOpt(dbJob, JobFields.activityInstanceId, job.activityInstanceId);
-    writeIdOpt(dbJob, JobFields.workflowInstanceId, job.workflowInstanceId);
-    writeIdOpt(dbJob, JobFields.workflowId, job.workflowId);
-    writeIdOpt(dbJob, JobFields.taskId, job.taskId);
+    writeIdOptNew(dbJob, JobFields.workflowInstanceId, job.workflowInstanceId);
+    writeIdOptNew(dbJob, JobFields.workflowId, job.workflowId);
+    writeIdOptNew(dbJob, JobFields.taskId, job.taskId);
     writeExecutions(dbJob, job.executions);
     writeLock(dbJob, job.lock);
     
@@ -236,7 +236,7 @@ public class MongoJobStore implements JobStore, Brewable {
 
   @Override
   public void deleteJobs(JobQuery query) {
-    jobsCollection.remove("delete-jobs", buildQuery(query));
+    jobsCollection.remove("delete-jobs", createDbQuery(query));
   }
 
   public List<Job> findJobs(JobQuery jobQuery) {
@@ -245,7 +245,7 @@ public class MongoJobStore implements JobStore, Brewable {
 
   protected List<Job> findJobs(MongoCollection collection, JobQuery jobQuery) {
     List<Job> jobs = new ArrayList<Job>();
-    BasicDBObject query = buildQuery(jobQuery);
+    BasicDBObject query = createDbQuery(jobQuery);
     DBCursor jobCursor = collection.find("find-jobs", query);
     while (jobCursor.hasNext()) {
       BasicDBObject dbJob = (BasicDBObject) jobCursor.next();
@@ -255,18 +255,21 @@ public class MongoJobStore implements JobStore, Brewable {
     return jobs;
   }
 
-  public BasicDBObject buildQuery(JobQuery jobQuery) {
+  public BasicDBObject createDbQuery(JobQuery query) {
+    if (query==null) {
+      query = new JobQuery();
+    }
     BasicDBObject dbQuery = new BasicDBObject();
     // TODO use MongoQuery filterOrganization(dbQuery, JobFields.organizationId);
-    if (jobQuery.getJobId()!=null) {
-      dbQuery.append(JobFields._id, new ObjectId(jobQuery.getJobId()));
+    if (query.getJobId()!=null) {
+      dbQuery.append(JobFields._id, new ObjectId(query.getJobId()));
     }
     return dbQuery;
   }
 
   @Override
   public void deleteJobById(String jobId) {
-    BasicDBObject dbQuery = buildQuery(new JobQuery().jobId(jobId));
+    BasicDBObject dbQuery = createDbQuery(new JobQuery().jobId(jobId));
     jobsCollection.remove("delete-job", dbQuery);
   }
 
@@ -283,6 +286,6 @@ public class MongoJobStore implements JobStore, Brewable {
 
   @Override
   public void deleteArchivedJobs(JobQuery query) {
-    archivedJobsCollection.remove("delete-archived-jobs", buildQuery(query));
+    archivedJobsCollection.remove("delete-archived-jobs", createDbQuery(query));
   }
 }

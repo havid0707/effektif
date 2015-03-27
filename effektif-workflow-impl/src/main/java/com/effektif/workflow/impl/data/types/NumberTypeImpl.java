@@ -15,7 +15,9 @@
  */
 package com.effektif.workflow.impl.data.types;
 
-import com.effektif.workflow.api.Configuration;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
 import com.effektif.workflow.api.types.NumberType;
 import com.effektif.workflow.impl.data.AbstractDataType;
 import com.effektif.workflow.impl.data.InvalidValueException;
@@ -24,23 +26,36 @@ import com.effektif.workflow.impl.data.InvalidValueException;
 /**
  * @author Tom Baeyens
  */
-public class NumberTypeImpl extends AbstractDataType {
+public class NumberTypeImpl extends AbstractDataType<NumberType> {
 
-  public NumberTypeImpl(Configuration configuration) {
-    super(NumberType.INSTANCE, Number.class, configuration);
+  public NumberTypeImpl() {
+    this(NumberType.INSTANCE);
+  }
+  
+  public NumberTypeImpl(NumberType numberType) {
+    super(numberType, Number.class);
   }
   
   @Override
-  public boolean isStatic() {
-    return true;
-  }
-
-  @Override
   public Object convertJsonToInternalValue(Object jsonValue) throws InvalidValueException {
-    if (jsonValue instanceof Double) {
+    // the next section keeps the java types predictable based on the values
+    
+    // keep big decimals and big integers as they are
+    if ( (jsonValue instanceof BigDecimal)
+         || (jsonValue instanceof BigInteger) ) {
       return jsonValue;
     } else if (jsonValue instanceof Number) {
-      return ((java.lang.Number)jsonValue).doubleValue();
+      Number number = (Number) jsonValue;
+      
+      // convert all numbers with a decimal fraction to doubles
+      double doubleValue = number.doubleValue();
+      if ( Math.rint(doubleValue)!=doubleValue
+           || Double.NEGATIVE_INFINITY==doubleValue
+           || Double.POSITIVE_INFINITY==doubleValue ) {
+        return doubleValue;
+      }
+      // we use long for all integer values
+      return number.longValue();
     } else if (jsonValue instanceof String) { 
       try {
         return Double.parseDouble((String) jsonValue);

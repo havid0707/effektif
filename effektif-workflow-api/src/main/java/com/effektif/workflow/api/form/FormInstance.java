@@ -15,34 +15,73 @@
  */
 package com.effektif.workflow.api.form;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import com.effektif.workflow.api.model.TypedValue;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
+ * A form instance (aka runtime form, rendered form) that is used for rendering 
+ * a form or submit the values.  The fields in form instance can contain a value,
+ * and (in contrast to form fields) no link to the workflow variables. 
+ * 
+ * Also see <a href="https://github.com/effektif/effektif/wiki/Forms">The Forms wiki page</a>
+ * for more documentation on Forms.
+ * 
  * @author Tom Baeyens
  */
-public class FormInstance extends Form {
+public class FormInstance extends AbstractForm {
 
-  protected Map<String,TypedValue> values;
-
-  public Map<String,TypedValue> getValues() {
-    return this.values;
+  protected List<FormInstanceField> fields;
+  public FormInstance() {
   }
-  public void setValues(Map<String,TypedValue> values) {
-    this.values = values;
-  }
-  public FormInstance values(Map<String,TypedValue> values) {
-    this.values = values;
-    return this;
-  }
-  public FormInstance value(String key, TypedValue value) {
-    if (this.values==null) {
-      this.values = new HashMap<>();
+  
+  public FormInstance(Form form) {
+    super(form);
+    if (form.getFields()!=null) {
+      fields = new ArrayList<>();
+      for (FormField field: form.getFields()) {
+        FormInstanceField formInstanceField = new FormInstanceField(field);
+        fields.add(formInstanceField);
+      }
     }
-    this.values.put(key, value);
+  }
+
+  public List<FormInstanceField> getFields() {
+    return this.fields;
+  }
+  public void setFields(List<FormInstanceField> fields) {
+    this.fields = fields;
+  }
+  
+  public FormInstance value(String fieldId, Object value) {
+    if (fields!=null) {
+      for (FormInstanceField field: fields) {
+        if (fieldId.equals(field.id)) {
+          field.setValue(value);
+          return this;
+        }
+      }
+    }
+    if (fields==null) {
+      fields = new ArrayList<>();
+    }
+    fields.add(new FormInstanceField()
+      .id(fieldId)
+      .value(value));
     return this;
+  }
+
+  public FormInstanceField getField(String fieldId) {
+    if (fieldId==null) {
+      return null;
+    }
+    if (fields!=null) {
+      for (FormInstanceField field: fields) {
+        if (fieldId.equals(field.getId())) {
+          return field;
+        }
+      }
+    }
+    return null;
   }
 }

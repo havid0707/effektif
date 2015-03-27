@@ -27,8 +27,7 @@ import org.joda.time.LocalDateTime;
 import org.slf4j.Logger;
 
 import com.effektif.workflow.api.Configuration;
-import com.effektif.workflow.api.acl.Authentication;
-import com.effektif.workflow.api.acl.Authentications;
+import com.effektif.workflow.api.model.WorkflowId;
 import com.effektif.workflow.api.query.OrderBy;
 import com.effektif.workflow.api.query.OrderDirection;
 import com.effektif.workflow.api.query.WorkflowQuery;
@@ -50,7 +49,7 @@ import com.mongodb.DBObject;
 
 public class MongoWorkflowStore implements WorkflowStore, Brewable {
   
-  public static final Logger log = WorkflowEngineImpl.log;
+  public static final Logger log = MongoDb.log;
   
   protected WorkflowEngineImpl workflowEngine;
   protected JsonService jsonService;
@@ -141,7 +140,7 @@ public class MongoWorkflowStore implements WorkflowStore, Brewable {
     ObjectId organizationId = (ObjectId) dbWorkflow.remove(FieldsWorkflow.ORGANIZATION_ID);
     T workflow = jsonService.jsonMapToObject(dbWorkflow, workflowClass);
     if (workflowId!=null) {
-      workflow.id(workflowId.toString());
+      workflow.id(new WorkflowId(workflowId.toString()));
     }
     if (organizationId!=null) {
       workflow.organizationId(organizationId.toString());
@@ -150,8 +149,8 @@ public class MongoWorkflowStore implements WorkflowStore, Brewable {
   }
   
   @Override
-  public String generateWorkflowId() {
-    return new ObjectId().toString();
+  public WorkflowId generateWorkflowId() {
+    return new WorkflowId(new ObjectId().toString());
   }
 
   @Override
@@ -162,6 +161,9 @@ public class MongoWorkflowStore implements WorkflowStore, Brewable {
 
   @Override
   public List<Workflow> findWorkflows(WorkflowQuery query) {
+    if (query==null) {
+      query = new WorkflowQuery();
+    }
     List<Workflow> workflows = new ArrayList<>();
     DBCursor cursor = createWorkflowDbCursor(query);
     while (cursor.hasNext()) {
@@ -173,7 +175,7 @@ public class MongoWorkflowStore implements WorkflowStore, Brewable {
   }
 
   @Override
-  public Workflow loadWorkflowById(String workflowId) {
+  public Workflow loadWorkflowById(WorkflowId workflowId) {
     List<Workflow> workflows = findWorkflows(new WorkflowQuery()
       .workflowId(workflowId));
     return !workflows.isEmpty() ? workflows.get(0) : null;
@@ -181,12 +183,12 @@ public class MongoWorkflowStore implements WorkflowStore, Brewable {
 
   @Override
   public void deleteWorkflows(WorkflowQuery query) {
-    BasicDBObject dbQuery = createWorkflowDbQuery(query);
+    BasicDBObject dbQuery = createDbQuery(query);
     workflowsCollection.remove("delete-workflows", dbQuery);
   }
 
   @Override
-  public String findLatestWorkflowIdBySource(String sourceWorkflowId) {
+  public WorkflowId findLatestWorkflowIdBySource(String sourceWorkflowId) {
     Exceptions.checkNotNullParameter(sourceWorkflowId, "sourceWorkflowId");
     BasicDBObject dbQuery = new MongoQuery()
       .organizationId()
@@ -194,11 +196,11 @@ public class MongoWorkflowStore implements WorkflowStore, Brewable {
       .get();
     BasicDBObject dbFields = new BasicDBObject(FieldsWorkflow._ID, 1);
     BasicDBObject dbWorkflow = workflowsCollection.findOne("find-latest-workflow", dbQuery, dbFields);
-    return dbWorkflow!=null ? dbWorkflow.get("_id").toString() : null;
+    return dbWorkflow!=null ? new WorkflowId(dbWorkflow.get("_id").toString()) : null;
   }
 
   public DBCursor createWorkflowDbCursor(WorkflowQuery query) {
-    BasicDBObject dbQuery = createWorkflowDbQuery(query);
+    BasicDBObject dbQuery = createDbQuery(query);
     DBCursor dbCursor = workflowsCollection.find("find-workflows", dbQuery);
     if (query.getLimit()!=null) {
       dbCursor.limit(query.getLimit());
@@ -209,10 +211,10 @@ public class MongoWorkflowStore implements WorkflowStore, Brewable {
     return dbCursor;
   }
 
-  protected BasicDBObject createWorkflowDbQuery(WorkflowQuery query) {
+  protected BasicDBObject createDbQuery(WorkflowQuery query) {
     BasicDBObject dbQuery = new BasicDBObject();
     if (query.getWorkflowId()!=null) {
-      dbQuery.append(FieldsWorkflow._ID, new ObjectId(query.getWorkflowId()));
+      dbQuery.append(FieldsWorkflow._ID, new ObjectId(query.getWorkflowId().getInternal()));
     }
 // TODO change to MongoQuery
 //  if (MongoHelper.hasOrganizationId(authorization)) {

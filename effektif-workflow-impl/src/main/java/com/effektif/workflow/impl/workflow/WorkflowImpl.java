@@ -18,10 +18,12 @@ package com.effektif.workflow.impl.workflow;
 import java.util.List;
 
 import com.effektif.workflow.api.acl.AccessControlList;
+import com.effektif.workflow.api.model.WorkflowId;
 import com.effektif.workflow.api.workflow.AbstractWorkflow;
 import com.effektif.workflow.api.workflow.Trigger;
 import com.effektif.workflow.impl.WorkflowEngineImpl;
 import com.effektif.workflow.impl.WorkflowParser;
+import com.effektif.workflow.impl.activity.AbstractTriggerImpl;
 import com.effektif.workflow.impl.activity.ActivityTypeService;
 import com.effektif.workflow.impl.template.Hint;
 import com.effektif.workflow.impl.template.TextTemplate;
@@ -32,34 +34,42 @@ import com.effektif.workflow.impl.template.TextTemplate;
  */
 public class WorkflowImpl extends ScopeImpl {
   
+  public WorkflowId id;
+  public String name;
   public WorkflowEngineImpl workflowEngine;
-
   public String sourceWorkflowId;
   public String organizationId;
   public List<ActivityImpl> startActivities;
-  public TriggerImpl trigger;
+  public AbstractTriggerImpl trigger;
   public AccessControlList access;
+  public boolean enableCases;
   public TextTemplate caseNameTemplate;
   
   public WorkflowImpl() {
   }
 
-  public void parse(AbstractWorkflow workflowApi, WorkflowParser parser) {
+  public void parse(AbstractWorkflow workflow, WorkflowParser parser) {
     this.workflow = this;
-    this.organizationId = workflowApi.getOrganizationId();
-    super.parse(workflowApi, parser, null);
+    this.name = workflow.getName();
+    this.organizationId = workflow.getOrganizationId();
+    super.parse(workflow, null, parser);
     this.startActivities = parser.getStartActivities(this);
     this.workflowEngine = configuration.get(WorkflowEngineImpl.class);
-    this.sourceWorkflowId = workflowApi.getSourceWorkflowId();
-    this.access = workflowApi.getAccess();
-    this.caseNameTemplate = parser.parseTextTemplate(workflowApi.getCaseNameTemplate(), Hint.CASE_NAME_TEMPLATE);
+    this.sourceWorkflowId = workflow.getSourceWorkflowId();
+    this.access = workflow.getAccess();
+    this.caseNameTemplate = parser.parseTextTemplate(workflow.getCaseNameTemplate(), Hint.CASE_NAME_TEMPLATE);
+    this.enableCases = workflow.isEnableCases();
     
-    Trigger triggerApi = workflowApi.getTrigger();
+    Trigger triggerApi = workflow.getTrigger();
     if (triggerApi!=null) {
       ActivityTypeService activityTypeService = configuration.get(ActivityTypeService.class);
       this.trigger = activityTypeService.instantiateTriggerType(triggerApi);
       this.trigger.parse(this, triggerApi, parser);
     }
+  }
+  
+  public String getIdText() {
+    return id!=null ? id.getInternal() : "null";
   }
 
   public String toString() {
@@ -87,12 +97,16 @@ public class WorkflowImpl extends ScopeImpl {
   }
 
   
-  public TriggerImpl getTrigger() {
+  public AbstractTriggerImpl getTrigger() {
     return trigger;
   }
 
   
   public AccessControlList getAccess() {
     return access;
+  }
+
+  public WorkflowId getId() {
+    return id;
   }
 }

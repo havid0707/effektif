@@ -18,6 +18,7 @@ package com.effektif.workflow.api.workflow;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.effektif.workflow.api.condition.Condition;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
@@ -31,6 +32,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 @JsonTypeInfo(use=Id.NAME, include=As.PROPERTY, property="type")
 public class Activity extends Scope {
   
+  protected String id;
   protected String defaultTransitionId;
   protected MultiInstance multiInstance;
   protected List<Transition> outgoingTransitions;
@@ -38,10 +40,17 @@ public class Activity extends Scope {
   public Activity() {
   }
 
-  public Activity(String id) {
+  public String getId() {
+    return this.id;
+  }
+  public void setId(String id) {
     this.id = id;
   }
-  
+  public Activity id(String id) {
+    this.id = id;
+    return this;
+  }
+
   public String getDefaultTransitionId() {
     return this.defaultTransitionId;
   }
@@ -69,6 +78,13 @@ public class Activity extends Scope {
 
   public Activity transitionTo(String toActivityId) {
     transitionTo(new Transition().to(toActivityId));
+    return this;
+  }
+  
+  public Activity transitionWithConditionTo(Condition condition, String toActivityId) {
+    transitionTo(new Transition()
+      .condition(condition)
+      .to(toActivityId));
     return this;
   }
   
@@ -121,11 +137,6 @@ public class Activity extends Scope {
   @Override
   public Activity timer(Timer timer) {
     super.timer(timer);
-    return this;
-  }
-  @Override
-  public Activity id(String id) {
-    super.id(id);
     return this;
   }
   @Override

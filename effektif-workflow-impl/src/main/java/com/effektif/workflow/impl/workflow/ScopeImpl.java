@@ -33,7 +33,6 @@ import com.effektif.workflow.impl.WorkflowParser;
 
 public abstract class ScopeImpl {
 
-  public String id;
   public ScopeImpl parent;
   public Configuration configuration;
   public WorkflowImpl workflow;
@@ -42,12 +41,11 @@ public abstract class ScopeImpl {
   public List<TimerImpl> timers;
   public List<TransitionImpl> transitions;
 
-  public void parse(Scope scope, WorkflowParser parser, ScopeImpl parent) {
-    this.id = scope.getId();
+  public void parse(Scope scope, ScopeImpl parentImpl, WorkflowParser parser) {
     this.configuration = parser.configuration;
-    if (parent!=null) {
-      this.parent = parent;
-      this.workflow = parent.workflow;
+    if (parentImpl!=null) {
+      this.parent = parentImpl;
+      this.workflow = parentImpl.workflow;
     }
     
     List<Variable> variables = scope.getVariables();
@@ -55,8 +53,8 @@ public abstract class ScopeImpl {
       int i = 0;
       for (Variable variable: variables) {
         VariableImpl variableImpl = new VariableImpl();
-        parser.pushContext("variables", variable, i);
-        variableImpl.parse(variable, parser, this);
+        parser.pushContext("variables", variable, variableImpl, i);
+        variableImpl.parse(variable, this, parser);
         addVariable(variableImpl);
         parser.popContext();
         i++;
@@ -71,7 +69,7 @@ public abstract class ScopeImpl {
       int i = 0;
       for (Timer timer: timers) {
         TimerImpl timerImpl = new TimerImpl();
-        parser.pushContext("timers", timer, i);
+        parser.pushContext("timers", timer, timerImpl, i);
         timerImpl.parse(timer, this, parser);
         addTimer(timerImpl);
         parser.popContext();
@@ -88,11 +86,11 @@ public abstract class ScopeImpl {
       int i = 0;
       for (Activity activity: activities) {
         ActivityImpl activityImpl = new ActivityImpl();
-        parser.pushContext("activities", activity, i);
+        parser.pushContext("activities", activity, activityImpl, i);
         if (activity.getDefaultTransitionId()!=null) {
           activitiesByDefaultTransitionId.put(activity.getDefaultTransitionId(), activityImpl);
         }
-        activityImpl.parse(activity, scope, parser, this);
+        activityImpl.parse(activity, scope, this, parser);
         addActivity(activityImpl);
         parser.popContext();
         i++;
@@ -107,8 +105,8 @@ public abstract class ScopeImpl {
       int i = 0;
       for (Transition transition: transitions) {
         TransitionImpl transitionImpl = new TransitionImpl();
-        parser.pushContext("transitions", transition, i);
-        transitionImpl.parse(transition, this, parser, activitiesByDefaultTransitionId);
+        parser.pushContext("transitions", transition, transitionImpl, i);
+        transitionImpl.parse(transition, this, activitiesByDefaultTransitionId, parser);
         addTransition(transitionImpl);
         parser.popContext();
         i++;
@@ -118,15 +116,15 @@ public abstract class ScopeImpl {
       scope.setTransitions(null);
     }
 
-    if (activities!=null) {
+    if (this.activities!=null) {
       // some activity types need to validate incoming and outgoing transitions, 
       // that's why they are validated after the transitions.
       int i = 0;
-      for (ActivityImpl activity : this.activities.values()) {
-        Activity apiActivity = activities.get(i);
-        if (activity.activityType != null) {
-          parser.pushContext("activities", apiActivity, i);
-          activity.activityType.parse(activity, apiActivity, parser);
+      for (ActivityImpl activityImpl : this.activities.values()) {
+        Activity activity = activities.get(i);
+        if (activityImpl.activityType != null) {
+          parser.pushContext("activities", activity, activityImpl, i);
+          activityImpl.activityType.parse(activityImpl, activity, parser);
           parser.popContext();
         }
         i++;
@@ -136,7 +134,7 @@ public abstract class ScopeImpl {
     if (!activitiesByDefaultTransitionId.isEmpty()) {
       for (String nonExistingDefaultTransitionId: activitiesByDefaultTransitionId.keySet()) {
         ActivityImpl activity = activitiesByDefaultTransitionId.get(nonExistingDefaultTransitionId);
-        parser.addError("Activity '%s' has non existing default transition id '%s'", activity.id, nonExistingDefaultTransitionId);
+        parser.addWarning("Activity '%s' has non existing default transition id '%s'", activity.id, nonExistingDefaultTransitionId);
       }
     }
   }
@@ -226,6 +224,17 @@ public abstract class ScopeImpl {
   public VariableImpl findVariableByIdLocal(String variableId) {
     return variables!=null ? variables.get(variableId) : null;
   }
+  
+  public VariableImpl findVariableByIdRecursive(String variableId) {
+    if (variables!=null && variables.containsKey(variableId)) {
+      return variables.get(variableId);
+    }
+    if (parent!=null) {
+      return parent.findVariableByIdRecursive(variableId);
+    }
+    return null;
+  }
+
 
   public ActivityImpl getNextActivity(ActivityImpl previous) {
     if (activities!=null) {
@@ -245,12 +254,6 @@ public abstract class ScopeImpl {
     return null;
   }
 
-  
-  public String getId() {
-    return id;
-  }
-
-  
   public ScopeImpl getParent() {
     return parent;
   }
@@ -284,4 +287,6 @@ public abstract class ScopeImpl {
   public List<TransitionImpl> getTransitions() {
     return transitions;
   }
+
+  public abstract String getIdText();
 }

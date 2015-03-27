@@ -32,15 +32,21 @@ import com.effektif.workflow.impl.identity.User;
  * @author Tom Baeyens
  */
 public class UserIdTypeImpl extends AbstractDataType<UserIdType> {
+  
+  protected TextTypeImpl textTypeImpl;
+  protected UserTypeImpl userTypeImpl;
 
-  public UserIdTypeImpl(Configuration configuration) {
-    this(new UserIdType(), configuration);
+  public UserIdTypeImpl() {
+    super(UserIdType.INSTANCE, String.class);
   }
-
-  public UserIdTypeImpl(UserIdType type, Configuration configuration) {
-    super(type, String.class, configuration);
+  
+  @Override
+  public void setConfiguration(Configuration configuration) {
+    super.setConfiguration(configuration);
+    this.textTypeImpl = getSingletonDataType(TextTypeImpl.class);
+    this.userTypeImpl = getSingletonDataType(UserTypeImpl.class);
   }
-
+  
   @Override
   public Object convertJsonToInternalValue(Object jsonValue) throws InvalidValueException {
     return jsonValue!=null ? new UserId((String)jsonValue) : null;
@@ -48,18 +54,21 @@ public class UserIdTypeImpl extends AbstractDataType<UserIdType> {
 
   @Override
   public Object convertInternalToJsonValue(Object internalValue) {
-    return internalValue!=null ? ((UserId)internalValue).getId() : null;
+    return internalValue!=null ? ((UserId)internalValue).getInternal() : null;
   }
   
   @Override
   public TypedValueImpl dereference(Object value, String fieldName) {
     UserId userId = (UserId) value;
-    IdentityService identityService = configuration.get(IdentityService.class);
-    User user = identityService.findUserById(userId);
-    if ("*".equals(fieldName)) {
-      return new TypedValueImpl(new UserTypeImpl(configuration), user);
+    if ("id".equals(fieldName)) {
+      return new TypedValueImpl(textTypeImpl, userId.getInternal());
     }
-    return new UserTypeImpl(configuration).dereference(user, fieldName);
+    IdentityService identityService = configuration.get(IdentityService.class);
+    User user = userId!=null ? identityService.findUserById(userId) : null;
+    if ("*".equals(fieldName)) {
+      return new TypedValueImpl(userTypeImpl, user);
+    }
+    return userTypeImpl.dereference(user, fieldName);
   }
 
   @Override

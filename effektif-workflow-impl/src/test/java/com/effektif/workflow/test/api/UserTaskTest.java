@@ -22,8 +22,11 @@ import org.junit.Test;
 
 import com.effektif.workflow.api.activities.UserTask;
 import com.effektif.workflow.api.model.RelativeTime;
+import com.effektif.workflow.api.model.TaskId;
+import com.effektif.workflow.api.model.UserId;
 import com.effektif.workflow.api.task.Task;
 import com.effektif.workflow.api.task.TaskQuery;
+import com.effektif.workflow.api.types.UserIdType;
 import com.effektif.workflow.api.workflow.Workflow;
 import com.effektif.workflow.test.WorkflowTest;
 
@@ -51,11 +54,76 @@ public class UserTaskTest extends WorkflowTest {
     
     Task task = taskService.findTasks(new TaskQuery()).get(0);
     assertEquals("release", task.getName());
-    assertEquals("johndoe", task.getAssigneeId().getId());
-    assertEquals("joesmoe", task.getCandidateIds().get(0).getId());
-    assertEquals("jackblack", task.getCandidateIds().get(1).getId());
+    assertEquals("johndoe", task.getAssigneeId().getInternal());
+    assertEquals("joesmoe", task.getCandidateIds().get(0).getInternal());
+    assertEquals("jackblack", task.getCandidateIds().get(1).getInternal());
     assertTrue(dueDateEarliest<=task.getDuedate().toDate().getTime());
     long dueDateLatest = new LocalDateTime().plusMinutes(5).toDate().getTime();
     assertTrue(task.getDuedate().toDate().getTime()<=dueDateLatest);
+  }
+
+  @Test
+  public void testTaskRole() throws Exception {
+    Workflow workflow = new Workflow()
+      .variable("manager", new UserIdType())
+      .activity("1", new UserTask()
+        .assigneeExpression("manager")
+        .transitionToNext())
+      .activity("2", new UserTask()
+        .assigneeExpression("manager"));
+    
+    deploy(workflow);
+    
+    start(workflow);
+    
+    Task task = taskService.findTasks(new TaskQuery()).get(0);
+    
+    TaskId taskId = task.getId();
+    taskService.assignTask(taskId, new UserId("joesmoe"));
+    taskService.completeTask(taskId);
+
+    task = taskService.findTasks(new TaskQuery().open()).get(0);
+    assertEquals("2", task.getName());
+    assertEquals(new UserId("joesmoe"), task.getAssigneeId());
+  }
+
+  @Test
+  public void testTaskRoleAutoAssign() throws Exception {
+    Workflow workflow = new Workflow()
+      .variable("manager", new UserIdType()
+        .candidateId("joesmoe"))
+      .activity("1", new UserTask()
+        .name("release")
+        .assigneeExpression("manager"));
+    
+    deploy(workflow);
+    
+    start(workflow);
+    
+    Task task = taskService.findTasks(new TaskQuery()).get(0);
+  }
+
+
+  @Test
+  public void testTaskQuery() throws Exception {
+    Workflow workflow = new Workflow()
+      .activity("1", new UserTask())
+      .activity("2", new UserTask())
+      .activity("3", new UserTask());
+    
+    deploy(workflow);
+    
+    start(workflow);
+    
+    assertOpenTaskNames(new TaskQuery(), "1", "2", "3");
+    assertOpenTaskNames(new TaskQuery().open(), "1", "2", "3");
+    assertOpenTaskNames(new TaskQuery().completed());
+
+    Task task1 = taskService.findTasks(new TaskQuery().taskName("1")).get(0);
+    taskService.completeTask(task1.getId());
+
+    assertOpenTaskNames(new TaskQuery(), "1", "2", "3");
+    assertOpenTaskNames(new TaskQuery().open(), "2", "3");
+    assertOpenTaskNames(new TaskQuery().completed(), "1");
   }
 }

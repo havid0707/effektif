@@ -35,37 +35,27 @@ public class ListTypeImpl extends AbstractDataType<ListType> {
   
   public DataType elementType;
   
-  public ListTypeImpl(Configuration configuration) {
-    super(new ListType(), List.class, configuration);
+  public ListTypeImpl() {
+    this(new ListType());
   }
-
-  public ListTypeImpl(DataType elementType, Configuration configuration) {
-    super(new ListType(), List.class, configuration);
-    this.elementType = elementType;
+  
+  public ListTypeImpl(ListType listType) {
+    super(listType, List.class);
   }
-
-  public ListTypeImpl(ListType listTypeApi, Configuration configuration) {
-    super(listTypeApi, List.class, configuration);
-    Type elementType = listTypeApi.getElementType();
+  
+  @Override
+  public void setConfiguration(Configuration configuration) {
+    super.setConfiguration(configuration);
+    Type elementType = type.getElementType();
     if (elementType!=null) {
       DataTypeService dataTypeService = configuration.get(DataTypeService.class);
       this.elementType = dataTypeService.createDataType(elementType);
     }
   }
-  
+
   @Override
-  public void validateInternalValue(Object internalValue) throws InvalidValueException {
-    if (internalValue==null) {
-      return;
-    }
-    if (!(internalValue instanceof List)) {
-      throw new InvalidValueException("Value for must be a list, but was "+internalValue+" ("+internalValue.getClass().getName()+")");
-    }
-    @SuppressWarnings("unchecked")
-    java.util.List<Object> list = (java.util.List<Object>) internalValue;
-    for (Object element: list) {
-      elementType.validateInternalValue(element);
-    }
+  public boolean isStatic() {
+    return false;
   }
 
   @Override
@@ -88,11 +78,14 @@ public class ListTypeImpl extends AbstractDataType<ListType> {
   
   @Override
   public TypedValueImpl dereference(Object value, String field) {
-    List<Object> values = (List<Object>) value;
-    List<Object> fieldValues = new ArrayList<>();
-    for (Object elementValue: values) {
-      TypedValueImpl elementFieldValue = elementType.dereference(elementValue, field);
-      fieldValues.add(elementFieldValue.value);
+    List<Object> fieldValues = null;
+    if (value instanceof List) {
+      List<Object> values = (List<Object>) value;
+      fieldValues = new ArrayList<>(); 
+      for (Object elementValue: values) {
+        TypedValueImpl elementFieldValue = elementType.dereference(elementValue, field);
+        fieldValues.add(elementFieldValue.value);
+      }
     }
     return new TypedValueImpl(this, fieldValues);
   }

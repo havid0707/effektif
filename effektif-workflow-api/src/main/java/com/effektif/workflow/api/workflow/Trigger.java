@@ -15,9 +15,6 @@
  */
 package com.effektif.workflow.api.workflow;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
@@ -29,23 +26,4 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 @JsonTypeInfo(use=Id.NAME, include=As.PROPERTY, property="type")
 public class Trigger {
 
-  /** maps keys defined in the trigger to variableIds in the workflow */ 
-  protected Map<String,String> outputBindings;
-
-  /** copies the adapter output value into a variable of this workflow when the activity is finished */
-  public Trigger outputBinding(String key, String variableId) {
-    if (outputBindings==null) {
-      outputBindings = new HashMap<>();
-    }
-    outputBindings.put(key, variableId);
-    return this;
-  }
-  
-  public Map<String, String> getOutputBindings() {
-    return outputBindings;
-  }
-
-  public void setOutputBindings(Map<String, String> outputBindings) {
-    this.outputBindings = outputBindings;
-  }
 }

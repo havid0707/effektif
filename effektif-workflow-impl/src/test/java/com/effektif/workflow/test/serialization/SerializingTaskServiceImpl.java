@@ -18,11 +18,15 @@ package com.effektif.workflow.test.serialization;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.effektif.workflow.api.form.FormInstance;
+import com.effektif.workflow.api.model.TaskId;
 import com.effektif.workflow.api.model.UserId;
 import com.effektif.workflow.api.task.Task;
 import com.effektif.workflow.api.task.TaskQuery;
 import com.effektif.workflow.api.task.TaskService;
+import com.effektif.workflow.impl.TaskServiceImpl;
 import com.effektif.workflow.impl.json.JsonService;
+import com.effektif.workflow.impl.json.SerializedFormInstance;
 
 
 /**
@@ -30,9 +34,9 @@ import com.effektif.workflow.impl.json.JsonService;
  */
 public class SerializingTaskServiceImpl extends AbstractSerializingService implements TaskService {
   
-  protected TaskService taskService;
+  protected TaskServiceImpl taskService;
 
-  public SerializingTaskServiceImpl(TaskService taskService, JsonService jsonService) {
+  public SerializingTaskServiceImpl(TaskServiceImpl taskService, JsonService jsonService) {
     super(jsonService);
     this.taskService = taskService;
   }
@@ -47,7 +51,7 @@ public class SerializingTaskServiceImpl extends AbstractSerializingService imple
   }
 
   @Override
-  public Task findTaskById(String taskId) {
+  public Task findTaskById(TaskId taskId) {
     log.debug("  >>taskId>> "+taskId);
     Task task = taskService.findTaskById(taskId);
     task = wireize("  <<task<<", task, Task.class);
@@ -70,10 +74,12 @@ public class SerializingTaskServiceImpl extends AbstractSerializingService imple
   }
 
   @Override
-  public void assignTask(String taskId, UserId assignee) {
+  public Task assignTask(TaskId taskId, UserId assignee) {
     log.debug("assignTask");
     assignee = wireize("  >>assignee>>", assignee, UserId.class);
-    taskService.assignTask(taskId, assignee);
+    Task task = taskService.assignTask(taskId, assignee);
+    task = wireize("  <<task<<", task, Task.class);
+    return task;
   }
 
   @Override
@@ -81,5 +87,18 @@ public class SerializingTaskServiceImpl extends AbstractSerializingService imple
     log.debug("deleteTasks");
     query = wireize("  >>query>>", query, TaskQuery.class);
     taskService.deleteTasks(query);
+  }
+
+  @Override
+  public Task completeTask(TaskId taskId) {
+    Task task = taskService.completeTask(taskId);
+    task = wireize("  <<task<<", task, Task.class);
+    return task;
+  }
+
+  @Override
+  public void saveFormInstance(TaskId taskId, FormInstance formInstance) {
+    formInstance = wireize("  >>formInstance>>", formInstance, FormInstance.class);
+    taskService.saveFormInstance(taskId, formInstance, true); 
   }
 }

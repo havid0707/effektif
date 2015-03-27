@@ -19,8 +19,10 @@ import static org.junit.Assert.*;
 
 import java.io.ByteArrayInputStream;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -30,14 +32,17 @@ import org.slf4j.LoggerFactory;
 
 import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.WorkflowEngine;
+import com.effektif.workflow.api.form.FormInstance;
 import com.effektif.workflow.api.model.Deployment;
 import com.effektif.workflow.api.model.Message;
 import com.effektif.workflow.api.model.TriggerInstance;
 import com.effektif.workflow.api.query.WorkflowInstanceQuery;
 import com.effektif.workflow.api.query.WorkflowQuery;
+import com.effektif.workflow.api.task.CaseService;
 import com.effektif.workflow.api.task.Task;
 import com.effektif.workflow.api.task.TaskQuery;
 import com.effektif.workflow.api.task.TaskService;
+import com.effektif.workflow.api.triggers.FormTrigger;
 import com.effektif.workflow.api.workflow.Workflow;
 import com.effektif.workflow.api.workflowinstance.ActivityInstance;
 import com.effektif.workflow.api.workflowinstance.ScopeInstance;
@@ -45,15 +50,15 @@ import com.effektif.workflow.api.workflowinstance.WorkflowInstance;
 import com.effektif.workflow.impl.TaskStore;
 import com.effektif.workflow.impl.WorkflowInstanceStore;
 import com.effektif.workflow.impl.WorkflowStore;
-import com.effektif.workflow.impl.email.Email;
-import com.effektif.workflow.impl.email.TestEmailService;
+import com.effektif.workflow.impl.email.EmailStore;
+import com.effektif.workflow.impl.email.OutgoingEmail;
+import com.effektif.workflow.impl.email.TestOutgoingEmailService;
 import com.effektif.workflow.impl.file.File;
 import com.effektif.workflow.impl.file.FileService;
 import com.effektif.workflow.impl.job.Job;
 import com.effektif.workflow.impl.job.JobQuery;
 import com.effektif.workflow.impl.job.JobStore;
 import com.effektif.workflow.impl.json.JsonService;
-import com.effektif.workflow.impl.memory.MemoryFile;
 import com.effektif.workflow.impl.memory.MemoryIdentityService;
 import com.effektif.workflow.impl.memory.TestConfiguration;
 import com.effektif.workflow.impl.workflowinstance.WorkflowInstanceImpl;
@@ -68,8 +73,10 @@ public class WorkflowTest {
   
   protected Configuration configuration = null;
   protected WorkflowEngine workflowEngine = null;
+  protected CaseService caseService = null;
   protected TaskService taskService = null;
-  protected TestEmailService emailService = null;
+  protected TestOutgoingEmailService emailService = null;
+  protected EmailStore emailStore = null;
   protected FileService fileService = null;
   
   @Before
@@ -81,7 +88,9 @@ public class WorkflowTest {
       configuration = cachedConfiguration;
       workflowEngine = configuration.getWorkflowEngine();
       taskService = configuration.getTaskService();
-      emailService = configuration.get(TestEmailService.class);
+      caseService = configuration.get(CaseService.class);
+      emailService = configuration.get(TestOutgoingEmailService.class);
+      emailStore = configuration.get(EmailStore.class);
       fileService = configuration.get(FileService.class);
     }
   }
@@ -103,6 +112,12 @@ public class WorkflowTest {
   public WorkflowInstance start(Workflow workflow) {
     return workflowEngine.start(new TriggerInstance()
       .workflowId(workflow.getId()));
+  }
+  
+  public WorkflowInstance start(Workflow workflow, FormInstance formInstance) {
+    return workflowEngine.start(new TriggerInstance()
+      .workflowId(workflow.getId())
+      .data(FormTrigger.FORM_INSTANCE_KEY, formInstance));
   }
   
   public WorkflowInstance sendMessage(WorkflowInstance workflowInstance, String activityInstanceId) {
@@ -138,6 +153,20 @@ public class WorkflowTest {
     }
   }
   
+  public void assertOpenTaskNames(TaskQuery taskQuery, String... expectedTaskNames) {
+    Set<String> expectedTaskNameSet = new HashSet<>();
+    if (expectedTaskNames!=null) {
+      for (String taskName : expectedTaskNames) {
+        expectedTaskNameSet.add(taskName);
+      }
+    }
+    Set<String> taskNameSet = new HashSet<>();
+    for (Task task: taskService.findTasks(taskQuery)) {
+      taskNameSet.add(task.getName());
+    }
+    assertEquals(expectedTaskNameSet, taskNameSet);
+  }
+  
   public static String getActivityInstanceId(WorkflowInstance workflowInstance, String activityId) {
     ActivityInstance activityInstance = workflowInstance.findOpenActivityInstance(activityId);
     Assert.assertNotNull("No open activity instance found "+activityId+" not found", activityInstance);
@@ -152,7 +181,7 @@ public class WorkflowTest {
       .activityInstanceId(activityInstance.getId()));
   }
   
-  public Email getEmail(int index) {
+  public OutgoingEmail getOutgoingEmail(int index) {
     if (emailService.emails.size()<=index) {
       fail("Can't get email "+index+". There were only "+emailService.emails.size());
     }
@@ -164,11 +193,10 @@ public class WorkflowTest {
   }
 
   public File createTestFile(byte[] bytes, String fileName, String contentType) {
-    File file = new MemoryFile()
-      .content(bytes)
+    File file = new File()
       .fileName(fileName)
       .contentType(contentType);
-    file = fileService.createFile(file);
+    file = fileService.createFile(file, new ByteArrayInputStream(bytes));
     return file;
   }
 

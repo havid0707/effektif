@@ -17,7 +17,6 @@ package com.effektif.workflow.impl.data.types;
 
 import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.model.FileId;
-import com.effektif.workflow.api.model.UserId;
 import com.effektif.workflow.api.types.FileIdType;
 import com.effektif.workflow.api.workflow.Binding;
 import com.effektif.workflow.api.xml.XmlElement;
@@ -25,6 +24,7 @@ import com.effektif.workflow.impl.data.AbstractDataType;
 import com.effektif.workflow.impl.data.InvalidValueException;
 import com.effektif.workflow.impl.data.TypedValueImpl;
 import com.effektif.workflow.impl.file.File;
+import com.effektif.workflow.impl.file.FileAttachment;
 import com.effektif.workflow.impl.file.FileService;
 import com.effektif.workflow.impl.util.Exceptions;
 
@@ -35,14 +35,21 @@ import com.effektif.workflow.impl.util.Exceptions;
  */
 public class FileIdTypeImpl extends AbstractDataType<FileIdType> {
   
-  public FileIdTypeImpl(Configuration configuration) {
-    this(FileIdType.INSTANCE, configuration);
+  protected FileService fileService;
+  protected AttachmentTypeImpl attachmentTypeImpl;
+  protected FileTypeImpl fileTypeImpl;
+  
+  public FileIdTypeImpl() {
+    super(FileIdType.INSTANCE, FileId.class);
   }
-
-  public FileIdTypeImpl(FileIdType fileIdType, Configuration configuration) {
-    super(fileIdType, FileId.class, configuration);
+  
+  @Override
+  public void setConfiguration(Configuration configuration) {
+    super.setConfiguration(configuration);
+    this.attachmentTypeImpl = getSingletonDataType(AttachmentTypeImpl.class);
+    this.fileTypeImpl = getSingletonDataType(FileTypeImpl.class);
   }
-
+  
   @Override
   public Object convertJsonToInternalValue(Object jsonValue) throws InvalidValueException {
     return jsonValue!=null ? new FileId((String)jsonValue) : null;
@@ -50,18 +57,21 @@ public class FileIdTypeImpl extends AbstractDataType<FileIdType> {
 
   @Override
   public Object convertInternalToJsonValue(Object internalValue) {
-    return internalValue!=null ? ((FileId)internalValue).getId() : null;
+    return internalValue!=null ? ((FileId)internalValue).getInternal() : null;
   }
   
   @Override
   public TypedValueImpl dereference(Object value, String fieldName) {
     FileId fileId = (FileId) value;
     FileService fileService = configuration.get(FileService.class);
-    File file = fileService.getFileById(fileId);
+    File file = fileId!=null ? fileService.getFileById(fileId) : null;
     if ("*".equals(fieldName)) {
-      return new TypedValueImpl(new FileTypeImpl(configuration), file);
+      return new TypedValueImpl(fileTypeImpl, file);
+    } else if ("attachment".equals(fieldName)) {
+      FileAttachment fileAttachment = FileAttachment.createFileAttachment(file, fileService);
+      return new TypedValueImpl(attachmentTypeImpl, fileAttachment);
     }
-    return new FileTypeImpl(configuration).dereference(file, fieldName);
+    return fileTypeImpl.dereference(file, fieldName);
   }
 
   @Override

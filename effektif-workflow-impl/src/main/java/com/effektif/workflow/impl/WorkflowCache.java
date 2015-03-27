@@ -15,11 +15,12 @@
  */
 package com.effektif.workflow.impl;
 
+import com.effektif.workflow.api.model.WorkflowId;
 import com.effektif.workflow.impl.workflow.WorkflowImpl;
 
 
 public interface WorkflowCache {
 
-  WorkflowImpl get(String workflowId);
+  WorkflowImpl get(WorkflowId workflowId);
   void put(WorkflowImpl workflow);
 }

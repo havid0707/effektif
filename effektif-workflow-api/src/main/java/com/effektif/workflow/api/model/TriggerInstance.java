@@ -22,29 +22,31 @@ import com.effektif.workflow.api.workflow.Workflow;
 
 
 /**
+ * The runtime representation of a {@link com.effektif.workflow.api.workflow.Trigger}
+ * when executing a workflow.
+ *
  * @author Tom Baeyens
  */
 public class TriggerInstance {
   
-  protected String workflowInstanceId;
-  protected String workflowId;
+  protected WorkflowInstanceId workflowInstanceId;
+  protected WorkflowId workflowId;
   protected String sourceWorkflowId;
   protected String businessKey;
   protected Map<String,Object> data;
-  protected String caseId;
-  protected String callerWorkflowInstanceId;
+  protected WorkflowInstanceId callerWorkflowInstanceId;
   protected String callerActivityInstanceId;
 
-  public String getWorkflowId() {
+  public WorkflowId getWorkflowId() {
     return this.workflowId;
   }
-  public void setWorkflowId(String workflowId) {
+  public void setWorkflowId(WorkflowId workflowId) {
     this.workflowId = workflowId;
   }
 
   /** use this specific workflow version. 
-   * If you want to use the latest version of a certain workflow, use {@link #workflowSource(String)} */ 
-  public TriggerInstance workflowId(String workflowId) {
+   * If you want to use the latest version of a certain workflow, use {@link #sourceWorkflowId(String)}. */
+  public TriggerInstance workflowId(WorkflowId workflowId) {
     this.workflowId = workflowId;
     return this;
   }
@@ -82,6 +84,11 @@ public class TriggerInstance {
     data.put(key, value);
     return this;
   }
+  /** retrieves a data item from the map */
+  public Object getData(String key) {
+    return data!=null ? data.get(key) : null;
+  }
+
   
   public String getBusinessKey() {
     return this.businessKey;
@@ -89,46 +96,41 @@ public class TriggerInstance {
   public void setBusinessKey(String businessKey) {
     this.businessKey = businessKey;
   }
-  /** optional user-defined unique id (unique in the scope of one workflow) 
-   * @see Message# */
+
+  /**
+   * Optional user-defined unique ID (unique in the scope of one workflow).
+   */
   public TriggerInstance businessKey(String businessKey) {
     this.businessKey = businessKey;
     return this;
   }
 
-  /** optional id that is passed.
+  /**
+   * Optional ID that is passed.
    * Please be aware that worklfowInstanceIds are normally assigned by 
    * the (persistence implementation in the) engine.
    * You can provide your own here but please be aware that it 
    * might have to be compatible with the persistence implementation.
    */
-  public String getWorkflowInstanceId() {
+  public WorkflowInstanceId getWorkflowInstanceId() {
     return this.workflowInstanceId;
   }
-  public void setWorkflowInstanceId(String workflowInstanceId) {
+  /** pass in an id for the workflow instance that will be created,
+   * ensure the id internal value is unique and that the configured 
+   * persistence supports it. */
+  public void setWorkflowInstanceId(WorkflowInstanceId workflowInstanceId) {
     this.workflowInstanceId = workflowInstanceId;
   }
 
-  /** references the top-level-task (aka case) that is related to the 
-   * created workflow instance. */
-  public String getCaseId() {
-    return this.caseId;
-  }
-  /** references the top-level-task (aka case) that is related to the 
-   * created workflow instance. */
-  public void setCaseId(String caseId) {
-    this.caseId = caseId;
-  }
-  
   /** used by the call activity to establish the link between the calling activity instance 
    * and the called workflow instance */
-  public String getCallerWorkflowInstanceId() {
+  public WorkflowInstanceId getCallerWorkflowInstanceId() {
     return callerWorkflowInstanceId;
   }
   
   /** used by the call activity to establish the link between the calling activity instance 
    * and the called workflow instance */
-  public void setCallerWorkflowInstanceId(String callerWorkflowInstanceId) {
+  public void setCallerWorkflowInstanceId(WorkflowInstanceId callerWorkflowInstanceId) {
     this.callerWorkflowInstanceId = callerWorkflowInstanceId;
   }
   

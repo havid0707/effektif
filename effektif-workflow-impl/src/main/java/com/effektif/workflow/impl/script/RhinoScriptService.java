@@ -18,13 +18,14 @@ package com.effektif.workflow.impl.script;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
+import javax.script.CompiledScript;
+
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.ContextAction;
+import org.mozilla.javascript.ContextFactory;
+import org.mozilla.javascript.Scriptable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import sun.org.mozilla.javascript.internal.Context;
-import sun.org.mozilla.javascript.internal.ContextAction;
-import sun.org.mozilla.javascript.internal.ContextFactory;
-import sun.org.mozilla.javascript.internal.Scriptable;
 
 import com.effektif.workflow.api.workflow.Script;
 import com.effektif.workflow.impl.WorkflowParser;
@@ -36,8 +37,7 @@ import com.effektif.workflow.impl.workflowinstance.ScopeInstanceImpl;
 /**
  * @author Tom Baeyens
  */
-@SuppressWarnings("restriction")
-public class RhinoScriptService extends AbstractScriptService implements ScriptService, ConditionService, Brewable {
+public class RhinoScriptService implements ScriptService, Brewable {
 
   private static final Logger log = LoggerFactory.getLogger(RhinoScriptService.class);
   
@@ -66,9 +66,7 @@ public class RhinoScriptService extends AbstractScriptService implements ScriptS
     return scriptImpl;
   }
 
-  @Override
-  public ScriptResult evaluate(final ScopeInstanceImpl scopeInstance, final CompiledScript compiledScript) {
-    final ScriptImpl script = (ScriptImpl) compiledScript;
+  public ScriptResult run(final ScopeInstanceImpl scopeInstance, final ScriptImpl script) {
     return (ScriptResult) contextFactory.call(new ContextAction() {
       public Object run(Context context) {
         Scriptable scope = context.initStandardObjects();
@@ -79,7 +77,7 @@ public class RhinoScriptService extends AbstractScriptService implements ScriptS
         
         ScriptResult scriptResult = new ScriptResult();
         try {
-          sun.org.mozilla.javascript.internal.Script rhinoCompiledScript = (sun.org.mozilla.javascript.internal.Script) script.compiledScript;
+          org.mozilla.javascript.Script rhinoCompiledScript = (org.mozilla.javascript.Script) script.compiledScript;
           Object result = rhinoCompiledScript.exec(context, rhinoVariableScope);
           
           if (script.expectedResultType!=null && result!=null) {

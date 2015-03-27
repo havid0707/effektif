@@ -17,10 +17,13 @@ package com.effektif.workflow.impl.script;
 
 import com.effektif.workflow.api.workflow.Script;
 import com.effektif.workflow.impl.WorkflowParser;
+import com.effektif.workflow.impl.workflowinstance.ScopeInstanceImpl;
 
 
 public interface ScriptService {
   
-  CompiledScript compile(Script script, WorkflowParser parser);
+  ScriptImpl compile(Script script, WorkflowParser parser);
+
+  ScriptResult run(ScopeInstanceImpl scopeInstance, ScriptImpl scriptImpl);
 
 }

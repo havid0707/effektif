@@ -15,6 +15,7 @@
  */
 package com.effektif.workflow.api.activities;
 
+import com.effektif.workflow.api.model.WorkflowId;
 import com.effektif.workflow.api.types.Type;
 import com.effektif.workflow.api.workflow.Activity;
 import com.effektif.workflow.api.workflow.MultiInstance;
@@ -32,17 +33,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 @JsonTypeName("call")
 public class Call extends AbstractBindableActivity {
 
-  protected String subWorkflowId; 
+  protected WorkflowId subWorkflowId; 
   protected String subWorkflowSource; 
-  
-  public Call() {
+
+  @Override
+  public Call id(String id) {
+    super.id(id);
+    return this;
   }
 
-  public Call(String id) {
-    super(id);
-  }
-
-  public Call subWorkflowId(String subWorkflowId) {
+  public Call subWorkflowId(WorkflowId subWorkflowId) {
     this.subWorkflowId = subWorkflowId;
     return this;
   }
@@ -52,7 +52,7 @@ public class Call extends AbstractBindableActivity {
     return this;
   }
   
-  public String getSubWorkflowId() {
+  public WorkflowId getSubWorkflowId() {
     return subWorkflowId;
   }
   
@@ -60,7 +60,7 @@ public class Call extends AbstractBindableActivity {
     return subWorkflowSource;
   }
 
-  public void setSubWorkflowId(String subWorkflowId) {
+  public void setSubWorkflowId(WorkflowId subWorkflowId) {
     this.subWorkflowId = subWorkflowId;
   }
   
@@ -123,12 +123,6 @@ public class Call extends AbstractBindableActivity {
   @Override
   public Call timer(Timer timer) {
     super.timer(timer);
-    return this;
-  }
-
-  @Override
-  public Call id(String id) {
-    super.id(id);
     return this;
   }
 

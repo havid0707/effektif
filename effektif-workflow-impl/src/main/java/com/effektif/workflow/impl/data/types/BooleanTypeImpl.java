@@ -15,7 +15,6 @@
  */
 package com.effektif.workflow.impl.data.types;
 
-import com.effektif.workflow.api.Configuration;
 import com.effektif.workflow.api.types.BooleanType;
 import com.effektif.workflow.impl.data.AbstractDataType;
 import com.effektif.workflow.impl.data.InvalidValueException;
@@ -25,16 +24,11 @@ import com.effektif.workflow.impl.data.InvalidValueException;
  * @author Tom Baeyens
  */
 public class BooleanTypeImpl extends AbstractDataType<BooleanType> {
-
-  public BooleanTypeImpl(Configuration configuration) {
-    super(BooleanType.INSTANCE, Boolean.class, configuration);
+  
+  public BooleanTypeImpl() {
+    super(BooleanType.INSTANCE, Boolean.class);
   }
   
-  @Override
-  public boolean isStatic() {
-    return true;
-  }
-
   @Override
   public Object convertJsonToInternalValue(Object valueApi) throws InvalidValueException {
     if (valueApi==null || (valueApi instanceof Boolean)) {

@@ -19,7 +19,7 @@ import org.junit.Test;
 
 import com.effektif.mongo.MongoConfiguration;
 import com.effektif.workflow.api.Configuration;
-import com.effektif.workflow.impl.email.TestEmailService;
+import com.effektif.workflow.impl.email.TestOutgoingEmailService;
 import com.effektif.workflow.test.TestSuiteHelper;
 import com.mongodb.DB;
 
@@ -33,17 +33,28 @@ public class MongoApiTest {
     DB db = configuration.get(DB.class);
     db.dropDatabase();
 
+    // this test runs the full API test suite with a mongo test configuration.
+    
     TestSuiteHelper.run(configuration
       // use the next line if you only want to run 1 test
-      // , CallTest.class, "testCallActivity"
+      // , UserTaskTest.class, "testTaskRole"
       );
   }
   
   public static Configuration createMongoTestConfiguration() {
     return new MongoConfiguration()
       .databaseName("effektif-test")
-      .ingredient(new TestEmailService())
+      .ingredient(new TestOutgoingEmailService())
       .prettyPrint()
       .synchronous();
+  }
+
+  @Test
+  public void testMongoConfigurationApi() {
+    // this is used to copy and paste into the wiki docs
+    Configuration configuration = new MongoConfiguration()
+      .server("localhost") // localhost is the default
+      .databaseName("databasename")
+      .authentication("username", "password", "database");
   }
 }

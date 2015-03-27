@@ -1,5 +1,6 @@
-/* Copyright (c) 2014, Effektif GmbH.
- * 
+/*
+ * Copyright 2014 Effektif GmbH.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -10,20 +11,22 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. */
+ * limitations under the License.
+ */
 package com.effektif.workflow.impl.email;
 
 import com.effektif.workflow.api.model.EmailId;
 
 
-/** stores emails.
+/**
+ * Persistence API for storing sent or received email messages.
  * 
  * @author Tom Baeyens
  */
 public interface EmailStore {
 
-  Email createEmail(Email email);
-  
-  Email findEmailById(EmailId emailId);
+  /** Stores the given email and updates the id. */
+  void insertEmail(PersistentEmail email);
 
+  PersistentEmail findEmailById(EmailId emailId);
 }
