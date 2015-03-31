@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 
 class EffektifSimulation extends Simulation {
 	val httpConf = http
-			.baseURL("http://104.155.33.219:9999")
+			.baseURL("http://localhost:9999")
 			.acceptHeader("application/json")
 
 
