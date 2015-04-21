@@ -16,7 +16,9 @@ package com.effektif.workflow.impl.script;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.http.HttpEntity;
@@ -66,6 +68,23 @@ public class NodeJsScriptService implements ScriptService, Brewable {
   private DataTypeService dataTypeService;
   private Mappings typeMappings = new Mappings();
 
+  private void initialiseTypeMappings() {
+    typeMappings.registerBaseClass(Type.class);
+    // Commented-out pending merge with WIP, which contains required @TypeName annotations.
+    //    typeMappings.registerSubClass(BooleanType.class);
+    //    typeMappings.registerSubClass(ChoiceType.class);
+    //    typeMappings.registerSubClass(DateType.class);
+    //    typeMappings.registerSubClass(EmailIdType.class);
+    //    typeMappings.registerSubClass(FileIdType.class);
+    //    typeMappings.registerSubClass(GroupIdType.class);
+    //    typeMappings.registerSubClass(JavaBeanType.class);
+    //    typeMappings.registerSubClass(ListType.class);
+    //    typeMappings.registerSubClass(MoneyType.class);
+    //    typeMappings.registerSubClass(NumberType.class);
+    typeMappings.registerSubClass(TextType.class);
+    //    typeMappings.registerSubClass(UserIdType.class);
+  }
+
   @Override
   public void brew(Brewery brewery) {
     dataTypeService = brewery.get(DataTypeService.class);
@@ -88,6 +107,7 @@ public class NodeJsScriptService implements ScriptService, Brewable {
     initialiseTypeMappings();
     ScriptResult scriptResult = new ScriptResult();
 
+    // Data transfer objects for request data.
     Map<String, Object> variableValues = new HashMap<>();
     Map<String, Object> typeDescriptors = new HashMap<>();
 
@@ -95,13 +115,11 @@ public class NodeJsScriptService implements ScriptService, Brewable {
     for (VariableInstanceImpl variableInstance : scopeInstance.getWorkflowInstance().variableInstances) {
       for (String scriptVariableName : scriptImpl.mappings.keySet()) {
         if (variableInstance.variable.id.equals(scriptImpl.mappings.get(scriptVariableName))) {
-          // TODO Lookup DataTypeService type from variableInstance.type
-          DataType dataType = variableInstance.getTypedValue().getType();
-          String typeName = typeMappings.getJsonTypeName(dataType);
-          VariableValue value = new VariableValue(typeName, variableInstance.getValue());
+          String typeName = typeMappings.getJsonTypeName(variableInstance.getTypedValue().getType());
+          VariableValue value = new VariableValue(scriptVariableName, typeName, variableInstance.getValue());
           variableValues.put(scriptVariableName, value);
 
-          // TODO Create type descriptor from DataType
+          // TODO Create type descriptor from DataType for types with multiple fields
           typeDescriptors.put(typeName, new TypeDescriptor(typeName));
           break;
         }
@@ -111,9 +129,6 @@ public class NodeJsScriptService implements ScriptService, Brewable {
     // Add variables and type descriptors to the request data.
     Map<String, Object> requestData = new HashMap<>();
     if (variableValues != null && !variableValues.isEmpty()) {
-      if (variableValues.containsKey((String) null)) {
-        variableValues.remove((String) null);
-      }
       requestData.put("variables", variableValues);
       requestData.put("typeDescriptors", typeDescriptors);
     }
@@ -129,7 +144,7 @@ public class NodeJsScriptService implements ScriptService, Brewable {
       NodeJsExecutionResponse parsedResponse = parseResponse(response);
       log.debug(parsedResponse.logs);
       if (parsedResponse.hasError()) {
-        log.debug("Script errors: " + parsedResponse.logs);
+        log.warn("Script errors: " + parsedResponse.logs);
       }
 
       scriptResult.setResult(parsedResponse);
@@ -151,22 +166,6 @@ public class NodeJsScriptService implements ScriptService, Brewable {
       }
     }
     return scriptResult;
-  }
-
-  private void initialiseTypeMappings() {
-    typeMappings.registerBaseClass(Type.class);
-//    typeMappings.registerSubClass(BooleanType.class);
-//    typeMappings.registerSubClass(ChoiceType.class);
-//    typeMappings.registerSubClass(DateType.class);
-//    typeMappings.registerSubClass(EmailIdType.class);
-//    typeMappings.registerSubClass(FileIdType.class);
-//    typeMappings.registerSubClass(GroupIdType.class);
-//    typeMappings.registerSubClass(JavaBeanType.class);
-//    typeMappings.registerSubClass(ListType.class);
-//    typeMappings.registerSubClass(MoneyType.class);
-//    typeMappings.registerSubClass(NumberType.class);
-    typeMappings.registerSubClass(TextType.class);
-//    typeMappings.registerSubClass(UserIdType.class);
   }
 
   /**

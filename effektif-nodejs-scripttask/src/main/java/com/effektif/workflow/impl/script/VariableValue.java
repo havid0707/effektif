@@ -12,9 +12,6 @@ package com.effektif.workflow.impl.script;/* Copyright (c) 2015, Effektif GmbH.
  * See the License for the specific language governing permissions and
  * limitations under the License. */
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * A script variable data transfer object, to be serialised as JSON and sent to the script service.
  *
@@ -22,19 +19,38 @@ import java.util.Map;
  */
 public class VariableValue {
 
-  private Object value;
-  private Map<String,String> type = new HashMap<>();
+  private final String name;
+  private final String typeName;
+  private final Object value;
 
-  public VariableValue(String typeName, Object value) {
-    type.put("name", typeName);
+  //  private Map<String,Object> data = new HashMap<>();
+
+  public VariableValue(String name, String typeName, Object value) {
+//    data.put("name", id);
+//    data.put("type", typeName);
+//    data.put("value", value);
+    this.name = name;
+    this.typeName = typeName;
     this.value = value;
+  }
+
+//  public Object getValue() {
+//    return value;
+//  }
+//
+//  public Map<String, String> getType() {
+//    return type;
+//  }
+
+  public String getName() {
+    return name;
+  }
+
+  public String getType() {
+    return typeName;
   }
 
   public Object getValue() {
     return value;
-  }
-
-  public Map<String, String> getType() {
-    return type;
   }
 }

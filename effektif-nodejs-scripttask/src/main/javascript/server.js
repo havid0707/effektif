@@ -20,7 +20,6 @@ http.createServer(function (request, response) {
 
     request.on("end", function() {
         try {
-            console.log("data = " + data);
             data = JSON.parse(data);
 
             logger.debug("\n" + prettyjson.render(data));

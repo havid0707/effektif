@@ -58,7 +58,6 @@ Executer.prototype.listenForUpdates = function(child, pipe) {
         }
 
         var updates = {};
-
         _.each(variables, function(value, name) {
             if(JSON.stringify(value) === this.variables[name]) {
                 return;
