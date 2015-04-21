@@ -25,8 +25,10 @@ import com.effektif.workflow.api.mapper.JsonWritable;
 import com.effektif.workflow.api.mapper.JsonWriter;
 import com.effektif.workflow.api.mapper.TypeName;
 import com.effektif.workflow.api.mapper.XmlElement;
+import com.effektif.workflow.api.types.Type;
 import com.effektif.workflow.api.workflow.Activity;
 import com.effektif.workflow.impl.bpmn.Bpmn;
+import com.effektif.workflow.impl.data.DataType;
 import com.effektif.workflow.impl.mapper.deprecated.SubclassMapping;
 import com.effektif.workflow.impl.mapper.deprecated.TypeField;
 
@@ -147,5 +149,12 @@ public class Mappings {
     if (typeField!=null) {
       jsonWriter.writeString(typeField.getTypeField(), typeField.getTypeName());
     }
+  }
+
+  /**
+   * Returns the @JsonTypeName annotation value for the given type’s corresponding {@link Type}.
+   */
+  public String getJsonTypeName(DataType type) {
+    return subclassMappings.get(Type.class).getTypeDescriptor(type.getApiClass());
   }
 }

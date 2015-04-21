@@ -1,6 +1,5 @@
-/*
- * Copyright 2014 Effektif GmbH.
- *
+package com.effektif.workflow.impl.script;/* Copyright (c) 2015, Effektif GmbH.
+ * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -11,21 +10,20 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package com.effektif.workflow.api.types;
+ * limitations under the License. */
 
-import com.effektif.workflow.api.mapper.TypeName;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-
+import java.util.Map;
 
 /**
- * @author Tom Baeyens
+ * Node.js JavaScript execution server response data transfer object, for deserialising form JSON.
  */
-@JsonTypeName("text")
-@TypeName("text")
-public class TextType extends Type {
+public class NodeJsExecutionResponse {
 
-  public static final TextType INSTANCE = new TextType(); 
+  public String logs;
+  public Boolean error;
+  public Map<String, Object> variableUpdates;
 
+  public boolean hasError() {
+    return Boolean.TRUE.equals(error);
+  }
 }

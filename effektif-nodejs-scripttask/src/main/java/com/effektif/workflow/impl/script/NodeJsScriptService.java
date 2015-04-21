@@ -13,12 +13,14 @@
  * limitations under the License. */
 package com.effektif.workflow.impl.script;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -27,11 +29,29 @@ import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.effektif.workflow.api.types.BooleanType;
+import com.effektif.workflow.api.types.ChoiceType;
+import com.effektif.workflow.api.types.DateType;
+import com.effektif.workflow.api.types.EmailIdType;
+import com.effektif.workflow.api.types.FileIdType;
+import com.effektif.workflow.api.types.GroupIdType;
+import com.effektif.workflow.api.types.JavaBeanType;
+import com.effektif.workflow.api.types.ListType;
+import com.effektif.workflow.api.types.MoneyType;
+import com.effektif.workflow.api.types.NumberType;
+import com.effektif.workflow.api.types.TextType;
+import com.effektif.workflow.api.types.Type;
+import com.effektif.workflow.api.types.UserIdType;
 import com.effektif.workflow.api.workflow.Script;
 import com.effektif.workflow.impl.WorkflowParser;
 import com.effektif.workflow.impl.configuration.Brewable;
 import com.effektif.workflow.impl.configuration.Brewery;
+import com.effektif.workflow.impl.data.DataType;
+import com.effektif.workflow.impl.data.DataTypeService;
+import com.effektif.workflow.impl.mapper.Mappings;
 import com.effektif.workflow.impl.workflowinstance.ScopeInstanceImpl;
+import com.effektif.workflow.impl.workflowinstance.VariableInstanceImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -43,16 +63,18 @@ public class NodeJsScriptService implements ScriptService, Brewable {
 
   private static final Logger log = LoggerFactory.getLogger(NodeJsScriptService.class);
   private String javaScriptServerUrl;
+  private DataTypeService dataTypeService;
+  private Mappings typeMappings = new Mappings();
 
   @Override
   public void brew(Brewery brewery) {
+    dataTypeService = brewery.get(DataTypeService.class);
     // TODO configure URL
     javaScriptServerUrl = "http://localhost:8081";
   }
 
   @Override
   public ScriptImpl compile(Script script, WorkflowParser parser) {
-    log.debug("compile");
     ScriptImpl scriptImpl = new ScriptImpl();
     scriptImpl.scriptService = this;
     scriptImpl.mappings = script.getMappings();
@@ -62,54 +84,139 @@ public class NodeJsScriptService implements ScriptService, Brewable {
 
   @Override
   public ScriptResult run(ScopeInstanceImpl scopeInstance, ScriptImpl scriptImpl) {
-    log.debug("run");
-    // was parameter
-    Map<String, Object> variableValues = new HashMap<>();
 
-    CloseableHttpClient httpclient = HttpClients.createDefault();
-    HttpPost POST = new HttpPost(javaScriptServerUrl);
-    POST.addHeader("Content-Type", "application/json; charset=utf-8");
-
+    initialiseTypeMappings();
     ScriptResult scriptResult = new ScriptResult();
+
+    Map<String, Object> variableValues = new HashMap<>();
+    Map<String, Object> typeDescriptors = new HashMap<>();
+
+    // Look-up script variable names from the script mappings.
+    for (VariableInstanceImpl variableInstance : scopeInstance.getWorkflowInstance().variableInstances) {
+      for (String scriptVariableName : scriptImpl.mappings.keySet()) {
+        if (variableInstance.variable.id.equals(scriptImpl.mappings.get(scriptVariableName))) {
+          // TODO Lookup DataTypeService type from variableInstance.type
+          DataType dataType = variableInstance.getTypedValue().getType();
+          String typeName = typeMappings.getJsonTypeName(dataType);
+          VariableValue value = new VariableValue(typeName, variableInstance.getValue());
+          variableValues.put(scriptVariableName, value);
+
+          // TODO Create type descriptor from DataType
+          typeDescriptors.put(typeName, new TypeDescriptor(typeName));
+          break;
+        }
+      }
+    }
+
+    // Add variables and type descriptors to the request data.
+    Map<String, Object> requestData = new HashMap<>();
+    if (variableValues != null && !variableValues.isEmpty()) {
+      if (variableValues.containsKey((String) null)) {
+        variableValues.remove((String) null);
+      }
+      requestData.put("variables", variableValues);
+      requestData.put("typeDescriptors", typeDescriptors);
+    }
+
+    requestData.put("script", scriptImpl.compiledScript);
+
+    // HTTP request
+    CloseableHttpClient httpclient = HttpClients.createDefault();
+    HttpPost httpRequest = createHttpRequest(requestData);
+    CloseableHttpResponse response = executeRequest(httpclient, httpRequest);
+
     try {
-      // TODO input variables
-      Map<String,Object> requestData = new HashMap<>();
-      requestData.put("script", scriptImpl.compiledScript);
-      if (variableValues != null && !variableValues.isEmpty()) {
-        if (variableValues.containsKey((String) null)) {
-          variableValues.remove((String) null);
-        }
+      NodeJsExecutionResponse parsedResponse = parseResponse(response);
+      log.debug(parsedResponse.logs);
+      if (parsedResponse.hasError()) {
+        log.debug("Script errors: " + parsedResponse.logs);
       }
 
-      // TODO input variables’ type descriptors
-      requestData.put("typeDescriptors", new HashMap<String,Object>());
+      scriptResult.setResult(parsedResponse);
 
-      String json = new ObjectMapper().writeValueAsString(requestData);
-      log.debug("POST /execute\n" + json);
-      POST.setEntity(new StringEntity(json, Charset.forName("UTF-8")));
-
-      CloseableHttpResponse response = httpclient.execute(POST);
+      // TODO variable updates
+      if (parsedResponse.variableUpdates != null) {
+        for (String scriptVariableName : parsedResponse.variableUpdates.keySet()) {
+          Object value = parsedResponse.variableUpdates.get(scriptVariableName);
+          log.debug("update " + scriptVariableName + " to value " + value);
+        }
+      } else {
+        log.debug("No updates");
+      }
+    } finally {
       try {
-        HttpEntity entity = response.getEntity();
-        NodeJsExecuteResponse parsedResponse = new ObjectMapper().readValue(entity.getContent(), NodeJsExecuteResponse.class);
-
-        if (parsedResponse.error) {
-          log.error("\n" + parsedResponse.logs);
-        }
-        else {
-          log.debug("logs = \n" + parsedResponse.logs);
-        }
-        scriptResult.setResult(parsedResponse);
-
-        // TODO variable updates
-
-      } finally {
         response.close();
+      } catch (IOException e) {
+        log.error("Cannot close response", e);
       }
-    } catch (IOException e) {
-      log.warn("JavaScript execution failed: " + e.toString(), e);
-      scriptResult.setException(e);
     }
     return scriptResult;
+  }
+
+  private void initialiseTypeMappings() {
+    typeMappings.registerBaseClass(Type.class);
+//    typeMappings.registerSubClass(BooleanType.class);
+//    typeMappings.registerSubClass(ChoiceType.class);
+//    typeMappings.registerSubClass(DateType.class);
+//    typeMappings.registerSubClass(EmailIdType.class);
+//    typeMappings.registerSubClass(FileIdType.class);
+//    typeMappings.registerSubClass(GroupIdType.class);
+//    typeMappings.registerSubClass(JavaBeanType.class);
+//    typeMappings.registerSubClass(ListType.class);
+//    typeMappings.registerSubClass(MoneyType.class);
+//    typeMappings.registerSubClass(NumberType.class);
+    typeMappings.registerSubClass(TextType.class);
+//    typeMappings.registerSubClass(UserIdType.class);
+  }
+
+  /**
+   * Returns a data transfer object resulting from parsing the given HTTP response.
+   */
+  private NodeJsExecutionResponse parseResponse(CloseableHttpResponse response) {
+    try {
+      HttpEntity entity = response.getEntity();
+      return new ObjectMapper().readValue(entity.getContent(), NodeJsExecutionResponse.class);
+    } catch (IOException e) {
+      throw new RuntimeException("JSON parse exception", e);
+    }
+  }
+
+  /**
+   * Executes an HTTP request
+   */
+  private CloseableHttpResponse executeRequest(CloseableHttpClient client, HttpPost request) {
+    try {
+      ByteArrayOutputStream stream = new ByteArrayOutputStream();
+      request.getEntity().writeTo(stream);
+      String requestBody = new String(stream.toByteArray(), Charset.defaultCharset());
+      log.debug(request.getMethod() + " " + request.getURI() + "\n" + requestBody);
+
+      CloseableHttpResponse response = client.execute(request);
+      if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+        log.error(response.getStatusLine().toString());
+      } else {
+        log.debug(response.getStatusLine().toString());
+      }
+      return response;
+    }
+    catch (Exception e) {
+      throw new RuntimeException("HTTP client exception", e);
+    }
+  }
+
+  /**
+   * Constructs and HTTP POST request for sending a script to the execution server.
+   */
+  private HttpPost createHttpRequest(Map<String, Object> requestData) {
+    try {
+      HttpPost httpRequest = new HttpPost(javaScriptServerUrl);
+      httpRequest.addHeader("Content-Type", "application/json; charset=utf-8");
+      String json = new ObjectMapper().writeValueAsString(requestData);
+      httpRequest.setEntity(new StringEntity(json, Charset.forName("UTF-8")));
+      return httpRequest;
+    }
+    catch (JsonProcessingException e) {
+      throw new RuntimeException("JSON error", e);
+    }
   }
 }

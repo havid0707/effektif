@@ -55,7 +55,7 @@ function EffektifObject(organization, typeDescriptors, type, value, parent) {
             var elementTypeDescriptor = _.findWhere(typeDescriptors, { id: field.type.elementType.name });
             fieldTypeDescriptor = {
                 isList: true,
-                isPrimitive: elementTypeDescriptor.isPrimitive
+                isPrimitive: elementTypeDescriptor.primitive
             };
         } else {
             fieldTypeDescriptor = _.findWhere(typeDescriptors, { id: field.type.name });

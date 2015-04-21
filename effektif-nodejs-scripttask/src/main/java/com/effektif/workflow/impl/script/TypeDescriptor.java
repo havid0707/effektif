@@ -12,14 +12,34 @@ package com.effektif.workflow.impl.script;/* Copyright (c) 2015, Effektif GmbH.
  * See the License for the specific language governing permissions and
  * limitations under the License. */
 
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Structure for deserialising a JSON response from the Node.js JavaScript execution server.
+ * Script variable type information data transfer object, to be serialised as JSON and sent to the script service.
+ *
+ * @author Peter Hilton
  */
-public class NodeJsExecuteResponse {
+public class TypeDescriptor {
 
-  public Map<String, Object> variableUpdates;
-  public String logs;
-  public Boolean error;
+  private String id;
+  private Boolean primitive;
+  private List fields = new ArrayList();
+
+  public TypeDescriptor(String id) {
+    this.id = id;
+    primitive = Boolean.TRUE;
+  }
+
+  public String getId() {
+    return id;
+  }
+
+  public Boolean getPrimitive() {
+    return primitive;
+  }
+
+  public List getFields() {
+    return fields;
+  }
 }

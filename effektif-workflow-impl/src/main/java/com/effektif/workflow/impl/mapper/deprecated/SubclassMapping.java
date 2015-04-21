@@ -29,7 +29,8 @@ public class SubclassMapping {
 
   String typeField;
   Map<String,Class<?>> subclasses = new HashMap<>();
-  
+  Map<Class<?>,String> typeNames = new HashMap<>();
+
   public SubclassMapping() {
     this.typeField = "type";
   }
@@ -40,11 +41,19 @@ public class SubclassMapping {
   
   public void registerSubclass(String typeName, Class<?> subclass) {
     subclasses.put(typeName, subclass);
+    typeNames.put(subclass, typeName);
   }
   
   public Class<?> getSubclass(Map<String,Object> jsonObject) {
     String typeName = (String) jsonObject.get(typeField);
     return subclasses.get(typeName);
+  }
+
+  /**
+   * Returns a JSON ‘type’ descriptor, used to describe a type in a JSON API request body.
+   */
+  public String getTypeDescriptor(Class<?> subclass) {
+    return typeNames.get(subclass);
   }
 
   public String getTypeField() {

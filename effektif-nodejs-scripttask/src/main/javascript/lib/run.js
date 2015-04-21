@@ -19,7 +19,7 @@ var typeDescriptors = JSON.parse(process.env.typeDescriptors);
 
 var variableObjects = _.map(variables, function(variable) {
     var typeDescriptor = typeDescriptors[variable.type.name];
-    if(typeDescriptor.isPrimitive) {
+    if(typeDescriptor.primitive) {
         return variable.value;
     } else {
         return new EffektifObject(typeDescriptor, variable.value);

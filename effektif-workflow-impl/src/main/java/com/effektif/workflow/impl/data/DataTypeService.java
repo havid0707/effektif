@@ -39,6 +39,7 @@ import com.effektif.workflow.impl.data.types.JavaBeanTypeImpl;
 import com.effektif.workflow.impl.data.types.NumberTypeImpl;
 import com.effektif.workflow.impl.data.types.ObjectTypeImpl;
 import com.effektif.workflow.impl.data.types.TextTypeImpl;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 
@@ -58,6 +59,7 @@ public class DataTypeService implements Brewable {
   protected Map<Class<? extends Type>,Constructor<?>> dataTypeConstructors = new ConcurrentHashMap<>();
   protected Map<Class<?>, JavaBeanTypeImpl> javaBeanTypes = new HashMap<>();
   protected Map<Class<?>, DataType> dataTypesByValueClass = new HashMap<>();
+  protected Map<Class<?>, String> jsonTypeNames = new HashMap<>();
 
   @Override
   public void brew(Brewery brewery) {
@@ -101,8 +103,24 @@ public class DataTypeService implements Brewable {
   public void setObjectMapper(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
   }
-  
+
+  /**
+   * Returns the @JsonTypeName annotation value for the given type’s corresponding {@link Type}.
+   */
+  public String getJsonTypeName(DataType type) {
+    return jsonTypeNames.get(type.getApiClass());
+  }
+
   public void registerDataType(DataType dataType) {
+
+    // Capture @JsonTypeName annotation values.
+//    Class dataTypeApiClass = dataType.getApiClass();
+//    JsonTypeName jsonTypeName = (JsonTypeName) dataTypeApiClass.getAnnotation(JsonTypeName.class);
+//    if (jsonTypeName==null) {
+//      throw new RuntimeException("Please add @JsonTypeName annotation to " + dataTypeApiClass);
+//    }
+//    jsonTypeNames.put(dataTypeApiClass, jsonTypeName.value());
+
     Class apiClass = dataType.getApiClass();
     if (apiClass!=null) {
       if (dataType.isStatic()) {

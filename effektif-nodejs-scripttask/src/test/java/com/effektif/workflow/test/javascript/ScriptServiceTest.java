@@ -24,12 +24,14 @@ import com.effektif.workflow.api.workflow.Workflow;
 import com.effektif.workflow.api.workflowinstance.WorkflowInstance;
 import junit.framework.TestCase;
 
+import static org.junit.Assert.assertEquals;
+
 /**
  * Tests script tasks running in the Node.js server.
  *
  * @author Peter Hilton
  */
-public class ScriptTaskTest extends TestCase {
+public class ScriptServiceTest extends TestCase {
 
   protected static Configuration configuration;
   private WorkflowEngine workflowEngine;
@@ -46,9 +48,27 @@ public class ScriptTaskTest extends TestCase {
 
     deploy(workflow);
 
-    WorkflowInstance workflowInstance = workflowEngine.start(new TriggerInstance().workflowId(workflow.getId()));
+    WorkflowInstance workflowInstance = start(workflow);
 
     // TODO Assert log contents are "Hello, world!"
+  }
+
+  @Test
+  public void testVariables() {
+    Workflow workflow = new Workflow()
+      .variable("n", new TextType())
+      .variable("m", new TextType())
+      .activity("s", new ScriptTask()
+        .script("message = 'Hello ' + name;")
+        .scriptMapping("name", "n")
+        .scriptMapping("message", "m"));
+
+    deploy(workflow);
+
+    WorkflowInstance workflowInstance = workflowEngine.start(
+      new TriggerInstance().workflowId(workflow.getId()).data("n", "World"));
+
+    assertEquals("Hello World", workflowInstance.getVariableValue("m"));
   }
 
   private Deployment deploy(Workflow workflow) {
