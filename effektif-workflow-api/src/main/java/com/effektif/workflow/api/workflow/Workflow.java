@@ -15,6 +15,8 @@
  */
 package com.effektif.workflow.api.workflow;
 
+import java.util.Map;
+
 import org.joda.time.LocalDateTime;
 
 import com.effektif.workflow.api.WorkflowEngine;
@@ -95,6 +97,11 @@ public class Workflow extends AbstractWorkflow {
       trigger = r.readTriggerEffektif();
       r.endElement();
     }
+    for (XmlElement nestedElement: r.readElementsEffektif("property")) {
+      r.startElement(nestedElement);
+      setProperty(r.readStringAttributeEffektif("key"), r.readStringAttributeEffektif("value"));
+      r.endElement();
+    }
 
     r.endExtensionElements();
     super.readBpmn(r);
@@ -120,6 +127,10 @@ public class Workflow extends AbstractWorkflow {
     }
     if (trigger != null) {
       trigger.writeBpmn(w);
+    }
+
+    for (Map.Entry<String,Object> property : properties.entrySet()) {
+      w.writeProperty(property.getKey(), property.getValue());
     }
 
     w.endExtensionElements();

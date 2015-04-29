@@ -33,6 +33,7 @@ import com.effektif.workflow.api.workflow.Binding;
 import com.effektif.workflow.api.workflow.Scope;
 import com.effektif.workflow.api.workflow.Transition;
 import com.effektif.workflow.api.workflow.Workflow;
+import com.effektif.workflow.impl.bpmn.types.PropertyTypeMapper;
 import com.effektif.workflow.impl.deprecated.json.Mappings;
 
 
@@ -384,7 +385,16 @@ public class BpmnWriterImpl implements BpmnWriter {
     mappings.writeTypeAttribute(this, o);
   }
 
-////////////////////////////////////////////////////////////////////////////////////////////////
+  @Override
+  public void writeProperty(String key, Object value) {
+    startElementEffektif("property");
+    writeStringAttributeEffektif("key", key);
+    writeStringAttributeEffektif("type", value.getClass().getName());
+    PropertyTypeMapper.getInstance(value).write(value, this);
+    endElement();
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////

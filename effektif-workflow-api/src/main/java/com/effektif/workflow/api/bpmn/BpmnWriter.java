@@ -93,4 +93,6 @@ public interface BpmnWriter {
   void writeTextEffektif(String localPart, Object value);
   
   void writeTypeAttribute(Object o);
+  
+  void writeProperty(String key, Object value);
 }
