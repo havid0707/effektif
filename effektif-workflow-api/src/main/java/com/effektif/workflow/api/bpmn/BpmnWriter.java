@@ -14,6 +14,7 @@
 package com.effektif.workflow.api.bpmn;
 
 import java.util.List;
+import java.util.Map;
 
 import org.joda.time.LocalDateTime;
 
@@ -93,4 +94,6 @@ public interface BpmnWriter {
   void writeTextEffektif(String localPart, Object value);
   
   void writeTypeAttribute(Object o);
+
+  void writeProperties(Map<String,Object> properties);
 }

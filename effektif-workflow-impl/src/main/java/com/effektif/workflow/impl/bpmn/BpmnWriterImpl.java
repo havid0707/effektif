@@ -34,7 +34,8 @@ import com.effektif.workflow.api.workflow.Scope;
 import com.effektif.workflow.api.workflow.Transition;
 import com.effektif.workflow.api.workflow.Workflow;
 import com.effektif.workflow.impl.deprecated.json.Mappings;
-
+import com.effektif.workflow.impl.json.JsonObjectMapper;
+import com.effektif.workflow.impl.json.JsonStreamMapper;
 
 /**
  * @author Tom Baeyens
@@ -384,7 +385,13 @@ public class BpmnWriterImpl implements BpmnWriter {
     mappings.writeTypeAttribute(this, o);
   }
 
-////////////////////////////////////////////////////////////////////////////////////////////////
+  @Override
+  public void writeProperties(Map<String, Object> properties) {
+    JsonStreamMapper mapper = new JsonStreamMapper();
+    writeCDataTextEffektif("properties", mapper.write(properties));
+  }
+
+  ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////

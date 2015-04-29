@@ -14,6 +14,7 @@
 package com.effektif.workflow.api.bpmn;
 
 import java.util.List;
+import java.util.Map;
 
 import org.joda.time.LocalDateTime;
 
@@ -136,6 +137,8 @@ public interface BpmnReader {
   /** Reads a string as content text in the current xml element */
   String readTextEffektif(String localPart);
 
+  Map<String,Object> readProperties();
+
   /** TODO */
   XmlElement getUnparsedXml();
 
@@ -144,10 +147,10 @@ public interface BpmnReader {
 
   /** Reads a list of condition instances from their various XML elements. */
   List<Condition> readConditions();
-
   /** Starts a nested scope for reading from within the given scope. */
   void startScope(Scope scope);
 
   /** Ends a nested scope. */
   void endScope();
+
 }

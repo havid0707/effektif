@@ -95,6 +95,7 @@ public class Workflow extends AbstractWorkflow {
       trigger = r.readTriggerEffektif();
       r.endElement();
     }
+//    properties = r.readProperties();
 
     r.endExtensionElements();
     super.readBpmn(r);
@@ -120,6 +121,9 @@ public class Workflow extends AbstractWorkflow {
     }
     if (trigger != null) {
       trigger.writeBpmn(w);
+    }
+    if (properties != null && !properties.isEmpty()) {
+      w.writeProperties(properties);
     }
 
     w.endExtensionElements();

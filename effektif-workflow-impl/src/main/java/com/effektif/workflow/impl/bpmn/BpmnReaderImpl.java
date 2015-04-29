@@ -47,6 +47,8 @@ import com.effektif.workflow.impl.data.DataTypeService;
 import com.effektif.workflow.impl.deprecated.json.AbstractJsonReader;
 import com.effektif.workflow.impl.deprecated.json.JsonReaderImpl;
 import com.effektif.workflow.impl.deprecated.json.Mappings;
+import com.effektif.workflow.impl.json.JsonStreamMapper;
+import com.effektif.workflow.impl.json.JsonStreamReader;
 
 /**
  * @author Tom Baeyens
@@ -440,6 +442,19 @@ public class BpmnReaderImpl implements BpmnReader {
       return textElement.getText();
     }
     return null;
+  }
+
+  /**
+   * TODO Uncomment call in Workflow, complete this implementation, make testWorkflow pass.
+   */
+  @Override
+  public Map<String, Object> readProperties() {
+    String json = readTextEffektif("properties");
+    if (json == null) {
+      return null;
+    }
+    JsonStreamMapper mapper = new JsonStreamMapper();
+    return mapper.readString(json, HashMap.class);
   }
 
   @Override
