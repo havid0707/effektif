@@ -213,10 +213,10 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
     if (variableInstance==null) {
       return null;
     }
-    if (expression.fields==null) {
+    if (expression.fieldKeys==null) {
       return variableInstance.getValue();
     }
-    TypedValueImpl typedValue = getTypedValueField(variableInstance, expression.fields);
+    TypedValueImpl typedValue = getTypedValueField(variableInstance, expression.fieldKeys);
     return typedValue!=null ? typedValue.value : null;
   }
 
@@ -264,10 +264,10 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
     if (variableInstance == null) {
       return null;
     }
-    if (expression.fields==null) {
+    if (expression.fieldKeys==null) {
       return variableInstance.getTypedValue();
     }
-    return getTypedValueField(variableInstance, expression.fields);
+    return getTypedValueField(variableInstance, expression.fieldKeys);
   }
 
   protected TypedValueImpl getTypedValueField(VariableInstanceImpl variableInstance, List<String> fields) {
@@ -379,7 +379,7 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
   /**
    * Returns the description of the variable specified by the given binding expression.
    */
-  public String findVariableDescription(BindingImpl binding) {
+  public VariableImpl findVariable(BindingImpl binding) {
     if (binding == null || binding.expression == null) {
       return null;
     }
@@ -387,7 +387,7 @@ public abstract class ScopeInstanceImpl extends BaseInstanceImpl {
     if (variableInstance == null || variableInstance.getVariable() == null) {
       return null;
     }
-    return variableInstance.getVariable().variable.getDescription();
+    return variableInstance.getVariable();
   }
   
   protected VariableInstanceImpl getVariableInstanceLocal(String variableId) {

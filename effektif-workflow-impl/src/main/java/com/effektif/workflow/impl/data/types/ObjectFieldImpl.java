@@ -29,20 +29,21 @@ import com.effektif.workflow.impl.data.DataTypeService;
  */
 public class ObjectFieldImpl {
 
+  protected String key;
   protected String name;
   protected DataTypeImpl type;
   
-  public ObjectFieldImpl(String name) {
-    this.name = name;
+  public ObjectFieldImpl(String key) {
+    key(key);
   }
 
-  public ObjectFieldImpl(String name, DataTypeImpl type) {
-    this.name = name;
+  public ObjectFieldImpl(String key, DataTypeImpl type) {
+    key(key);
     this.type = type;
   }
 
   public ObjectFieldImpl(Class< ? > objectClass, ObjectField field, Configuration configuration) {
-    this.name = field.getKey();
+    key(field.getKey());
     DataType fieldType = field.getType();
     DataTypeService dataTypeService = configuration.get(DataTypeService.class);
     this.type = dataTypeService.createDataType(fieldType);
@@ -51,11 +52,22 @@ public class ObjectFieldImpl {
   public Object getFieldValue(Object value) {
     if (value instanceof Map) {
       Map<String,Object> map = (Map<String, Object>) value;
-      return map.get(name);
+      return map.get(key);
     }
     return null;
   }
 
+  public String getKey() {
+    return this.key;
+  }
+  public void setKey(String key) {
+    key(key);
+  }
+  public ObjectFieldImpl key(String key) {
+    this.key = key;
+    return this;
+  }
+  
   public String getName() {
     return this.name;
   }
@@ -66,7 +78,7 @@ public class ObjectFieldImpl {
     this.name = name;
     return this;
   }
-  
+
   public DataTypeImpl getDataType() {
     return this.type;
   }

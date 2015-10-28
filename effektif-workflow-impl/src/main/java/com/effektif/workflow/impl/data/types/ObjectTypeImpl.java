@@ -77,6 +77,12 @@ public class ObjectTypeImpl<T extends DataType> extends AbstractDataType<T> {
     if (fields==null) {
       fields = new HashMap<>();
     }
-    fields.put(field.getName(), field);
+    fields.put(field.getKey(), field);
+  }
+
+  @Override
+  public String getFieldLabel(String field) {
+    ObjectFieldImpl objectField = fields!=null ? fields.get(field) : null;
+    return objectField!=null ? objectField.getName() : field;
   }
 }
